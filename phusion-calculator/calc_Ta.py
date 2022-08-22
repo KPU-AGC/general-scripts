@@ -155,6 +155,7 @@ def get_args() -> Namespace:
         or not all([True if nuc in allowed_nucs else False for nuc in args.r_seq.upper()]):
             parser.error('Only the standard nucleotides are allowed: {A, T, C, G}')
     except AttributeError:
+        #TODO: HANDLE THIS EXCEPT AKA GIVE ME A COMMENT
         pass
 
     return args
@@ -355,6 +356,7 @@ def main() -> None:
             rev_primer = Primer(name='Reverse', seq=args.r_seq, primer_conc=args.conc)
             primers_list.append({'fwd_primer': fwd_primer, 'rev_primer': rev_primer})
     except AttributeError:
+        #TODO: HANDLE THIS EXCEPT AKA GIVE ME A COMMENT
         pass
     try:
         if args.input_path:
@@ -389,15 +391,17 @@ def main() -> None:
                         if line_info[0]:
                             fwd_primer = Primer(name=line_info[1], seq=line_info[2], primer_conc=args.conc)
                             rev_primer = Primer(name=line_info[4], seq=line_info[5], primer_conc=args.conc)
-                        else: pass
+                        else: pass #TODO: PROVIDE A REASON FOR THIS ELSE TO EXIST
 
                     # add the processed primers to the processing list
                     # --------------------------------------------------
                     try:
                         primers_list.append({'fwd_primer': fwd_primer, 'rev_primer': rev_primer})
                     except UnboundLocalError:
+                        #TODO: HANDLE THIS EXCEPT AKA GIVE ME A COMMENT
                         pass
     except AttributeError:
+        #TODO: HANDLE THIS EXCEPT AKA GIVE ME A COMMENT
         pass
 
     # create a list of output to print out to terminal
