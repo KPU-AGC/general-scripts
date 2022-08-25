@@ -10,6 +10,9 @@ import csv
 from Bio import SeqIO
 
 def output_fastas(ab1_data: list, output_path: Path, con_flag: bool) -> None: 
+    """
+    Outputs the fastas either concatenated by primer set or into individual files
+    """
     if con_flag: 
         #Determine which primers are present
         primer_data = dict()
