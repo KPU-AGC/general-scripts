@@ -5,6 +5,7 @@ Purpose: From ab1 files, trims and outputs sequence as fasta files.
 """
 from argparse import ArgumentParser
 from pathlib import Path
+from sys import exit
 import csv
 from Bio import SeqIO
 
@@ -85,7 +86,6 @@ def parse_args():
     return (args)
 
 def main():
-    
     args = parse_args()
     ab1_path = args.ab1_path
     con_flag = args.con_flag
@@ -100,12 +100,23 @@ def main():
 
     #Get all ab1 files in directory
     try: 
+        if ab1_path.is_dir() is False:
+            raise NotADirectoryError
+        
         ab1_iter = ab1_path.glob('*.ab1')
         for ab1_file_path in ab1_iter: 
             ab1_file_paths.append(ab1_file_path)
-    except: 
-        #TODO: HANDLE EXCEPTIONS
-        pass
+        
+        if len(ab1_file_paths) <= 0:
+            raise ValueError
+
+    except NotADirectoryError: 
+        print('Not a directory. Terminating program..')
+        exit()
+
+    except ValueError:
+        print('No ab1 files were found at the directory. Terminating program..')
+        exit()
 
     for ab1_file_path in ab1_file_paths:
         ab1_file = SeqIO.read(ab1_file_path, 'abi')
@@ -138,7 +149,10 @@ def main():
 
     #Output metadata
     metadata_path = output_path.joinpath('metadata.csv')
-    metadata.sort(key= lambda x : (x[0].split('_')[1], x[0].split('_')[0]))
+    try: 
+        metadata.sort(key= lambda x : (x[0].split('_')[1], x[0].split('_')[0]))
+    except IndexError: 
+        print('Sort failed due to filenames.')
     with open(metadata_path, 'w', newline='') as metadata_file:  
         csvwriter = csv.writer(metadata_file)
         csvwriter.writerow(('ID', 'trace_score', 'median_pup', 'left_trim','right_trim'))
