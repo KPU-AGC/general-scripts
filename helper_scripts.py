@@ -1,4 +1,4 @@
-def follows_SeqStudio_naming(name_str: str) -> bool:
+def follows_seqstudio_naming(name_str: str) -> bool:
     """
     This function returns true if the input name follows the '_'-delimited conventions.
 
