@@ -1,4 +1,5 @@
-"""GenBank Processing Scripts
+"""
+process_genbank_db.py: GenBank Processing Scripts
 
 This script performs two functions: 
 1) Creates .fasta file containing sequences from an input GenBank file
@@ -7,50 +8,101 @@ This script performs two functions:
 This tool accepts the path to a single GenBank file. 
 
 Requires SeqIO from BioPython ('biopython') and 'pandas'.
+
+Author: Michael Ke
+Version: 1.1.0
+Date Last Modified: 2022-08-29
 """
 
-import pathlib
-import argparse
+# MODULES
+# --------------------------------------------------
+from argparse import (
+    Namespace,
+    ArgumentParser,
+    RawDescriptionHelpFormatter)
+from pathlib import Path
 import pandas as pd
 from Bio import SeqIO
 
-def output_fasta(list_fasta, path):
-    """Create .fasta files
-    Parameters: 
-    list_fasta - list - list containing fasta strings
-    path - pathLib.path - path without suffix
-    Returns: 
-    None
+# ARGPARSE
+# --------------------------------------------------
+def get_args() -> Namespace:
+    """ Get command-line arguments """
+
+    parser = ArgumentParser(
+        description='This is an example description',
+        epilog='v1.1.0: <insert name here>',
+        formatter_class=RawDescriptionHelpFormatter)
+    parser.add_argument(
+        'input_path',
+        type=Path,
+        help='path of input')
+    parser.add_argument(
+        '-o',
+        '--out',
+        dest='output_path',
+        type=Path,
+        default=None,
+        help='path of output')
+    args = parser.parse_args()
+
+    # HANDLE EXCEPTIONS
+    # --------------------------------------------------
+    args.input_path = args.input_path.resolve()
+
+    # resolve the output path if it's defined
+    if args.output_path:
+        args.output_path = args.output_path.resolve()
+
+    return args
+# --------------------------------------------------
+def output_fasta(list_fasta: list, path: Path) -> None:
     """
-    output_file = open(path, 'w')
-    for fasta in list_fasta: 
-        output_file.write(fasta)
-    output_file.close()
-def _retrieve_metadata(gb_entry):
-    """Parse GenBank entry to obtain relevant metadata information
+    Function creates .fasta files
     Parameters: 
-    gb_entry - SeqRecord object
+        list_fasta (list): list containing fasta strings
+        path (Path) - path without suffix
     Returns: 
-    metadata - tuple of metadata
+        None
+    """
+    with open(path, 'w', encoding='UTF8') as output_file:
+        for fasta in list_fasta: 
+            output_file.write(fasta)
+
+    return None
+def _retrieve_metadata(gb_entry) -> tuple:
+    """
+    Parse GenBank entry to obtain relevant metadata information
+
+    Parameters: 
+        gb_entry: SeqRecord object
+
+    Returns: 
+        metadata - tuple of metadata
     """ 
-    def get_source_index(features): 
-        """Get the index of the 'source' entry for GenBank entry
+    def get_source_index(features) -> int:
+        """
+        Get the index of the 'source' entry for GenBank entry
+
         Parameters: 
-        features - feature table of a GenBank entry
+            features - feature table of a GenBank entry
         Returns: 
-        index - int - position of 'source' entry in feature table
+            index - int - position of 'source' entry in feature table
         """
         index = None
         for feature in features: 
             if feature.type == "source":
                 index = features.index(feature)
         return index
-    def get_source_qualifiers(source_qual): 
-        """Get qualifiers of interest for source
+    def get_source_qualifiers(source_qual) -> list:
+        """
+        Get qualifiers of interest for source
+
         Parameters: 
-        source_qual - qualifiers in source
+            source_qual - qualifiers in source
+
         Returns: 
-        qual - list - contains qualifiers of interest
+            qual - list - contains qualifiers of interest
         """
         quals = []
         interest = ('isolate', 'host', 'country')
@@ -63,9 +115,11 @@ def _retrieve_metadata(gb_entry):
             else: 
                 quals.append(None)
         return quals
+
     #Get qualifiers from 'source' feature
     source_index = get_source_index(gb_entry.features)
     source_qualifiers = get_source_qualifiers(gb_entry.features[source_index].qualifiers)
+
     #Order: accession id, sequence length, description, organism, isolate, host, country
     metadata = (
         gb_entry.id, 
@@ -77,36 +131,18 @@ def _retrieve_metadata(gb_entry):
         source_qualifiers[2],
     )
     return metadata
-def parse_args(): 
-    parser = argparse.ArgumentParser(description='Generate .fasta and metadata files from a GenBank file.')
-    parser.add_argument(
-        'd', 
-        metavar='input', 
-        type=pathlib.Path, 
-        help = 'path to a GenBank file'
-    )
-    parser.add_argument('-o',
-        dest='output_path', 
-        action='store', 
-        type=pathlib.Path,
-        default=None,
-        help='output path'
-    )
-    args = parser.parse_args()
-    output_path = args.d.parents
-    if args.output_path:
-        output_path = args.output_path
-    return (args.d, output_path)
-
-def main():
-
-    gb_path, output_path = parse_args()
-
-    if gb_path.is_file() is True:
+# --------------------------------------------------
+def main() -> None:
+    """ Insert docstring here """
+    args = get_args()
+    
+    if args.input_path.is_file():
         #Continue program
-        data = SeqIO.parse(gb_path, 'gb')
+        data = SeqIO.parse(args.input_path, 'gb')
+        
         #fasta
         list_fasta = []
+
         #metadata
         metadata = {
             'acc':[],
@@ -140,10 +176,11 @@ def main():
         meta_df = pd.DataFrame(data=metadata)
 
         #Output
-        output_fasta(list_fasta, output_path.joinpath(gb_path.stem + '.fasta'))
-        meta_df.to_csv(output_path.joinpath(gb_path.stem + '_metadata.csv'), index=False)
+        output_fasta(list_fasta, args.output_path.joinpath(args.input_path.stem + '.fasta'))
+        meta_df.to_csv(args.output_path.joinpath(args.input_path.stem + '_metadata.csv'), index=False)
     else: 
         print("Not a GenBank file.") 
-        
-if __name__ == "__main__": 
+
+# --------------------------------------------------
+if __name__ == "__main__":
     main()
