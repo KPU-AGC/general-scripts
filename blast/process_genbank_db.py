@@ -10,7 +10,7 @@ This tool accepts the path to a single GenBank file.
 Requires SeqIO from BioPython ('biopython') and 'pandas'.
 
 Author: Michael Ke
-Version: 1.1.0
+Version: 1.2.0
 Date Last Modified: 2022-08-29
 """
 
@@ -70,7 +70,7 @@ def output_fasta(list_fasta: list, path: Path) -> None:
             output_file.write(fasta)
 
     return None
-def _retrieve_metadata(gb_entry) -> tuple:
+def _retrieve_metadata(gb_entry) -> dict:
     """
     Parse GenBank entry to obtain relevant metadata information
 
@@ -120,16 +120,16 @@ def _retrieve_metadata(gb_entry) -> tuple:
     source_index = get_source_index(gb_entry.features)
     source_qualifiers = get_source_qualifiers(gb_entry.features[source_index].qualifiers)
 
-    #Order: accession id, sequence length, description, organism, isolate, host, country
-    metadata = (
-        gb_entry.id, 
-        len(gb_entry.seq), 
-        gb_entry.description, 
-        gb_entry.annotations['source'],
-        source_qualifiers[0],
-        source_qualifiers[1],
-        source_qualifiers[2],
-    )
+    metadata = {
+        'acc':  gb_entry.id,
+        'seq_len': len(gb_entry.seq),
+        'desc': gb_entry.description,
+        'organism': gb_entry.annotations['source'],
+        'isolate': source_qualifiers[0],
+        'host': source_qualifiers[1],
+        'country': source_qualifiers[2],
+        }
+        
     return metadata
 # --------------------------------------------------
 def main() -> None:
@@ -145,27 +145,25 @@ def main() -> None:
 
         #metadata
         metadata = {
-            'acc':[],
-            'seq_len':[],
-            'desc':[],
-            'organism':[],
-            'isolate':[],
-            'host':[],
-            'country':[],
+            'acc': [],
+            'seq_len': [],
+            'desc': [],
+            'organism': [],
+            'isolate': [],
+            'host': [],
+            'country': [],
         }
         for entry in data: 
             list_fasta.append(entry.format('fasta'))
             meta = _retrieve_metadata(entry)
-            #Add to metadata
-            metadata['acc'].append(meta[0])
-            metadata['seq_len'].append(meta[1])
-            metadata['desc'].append(meta[2])
-            metadata['organism'].append(meta[3])
-            metadata['isolate'].append(meta[4])
-            metadata['host'].append(meta[5])
-            metadata['country'].append(meta[6])
+            
+            # Add to metadata
+            # For each key listed in the metadata dict above,
+            # append the values in the retrieved metadata belonging to the same key
+            for value in meta:
+                metadata[value].append(meta[value])
         
-        #DF
+        # DF
         print(len(metadata['acc']))
         print(len(metadata['seq_len']))
         print(len(metadata['desc']))
@@ -175,7 +173,7 @@ def main() -> None:
         print(len(metadata['country']))
         meta_df = pd.DataFrame(data=metadata)
 
-        #Output
+        # Output
         output_fasta(list_fasta, args.output_path.joinpath(args.input_path.stem + '.fasta'))
         meta_df.to_csv(args.output_path.joinpath(args.input_path.stem + '_metadata.csv'), index=False)
     else: 
