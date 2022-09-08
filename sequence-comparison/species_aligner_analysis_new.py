@@ -3,9 +3,6 @@ species_aligner_analysis.py - This script takes a Genbank file containing sequen
 species at a specific target site, aligns the sequences by species, and generates consensus sequences for
 each species. 
 
-Classes: 
-GenbankHandler : object that handles Genbank files
-
 Author: Michael Ke
 Version: 1.0
 Date: September 1st 2022
@@ -33,6 +30,24 @@ def parse_args():
         default=None,
         type=Path,
         help='Output destination path',
+    )
+    parser.add_argument(
+        '--min_cons',
+        '-c',
+        action='store',
+        dest='min_cons',
+        type=float,
+        default=0.9,
+        help='Minimum percentage (decimal format) of identical bases for consensus base to be called'
+    )
+    parser.add_argument(
+        '--min_rep',
+        '-r', 
+        action='store',
+        dest='min_rep',
+        type=float,
+        default=1.0,
+        help='Minimum number of sequences represented for consensus to be generated',
     )
     args = parser.parse_args()
 
@@ -73,6 +88,59 @@ def parse_gb(gb_path : Path) -> list:
     
     return species_dict
 
+def get_consensus(alignment, min_con, min_rep):
+    """
+    Get the consensus sequence
+    """
+    cons_sequence = []
+    
+    #Determine sequence representation
+    sequence_regions = []
+    for sequence in alignment: 
+        start_base = sequence.seq.ungap()[0]
+        end_base = sequence.seq.ungap()[-1]
+        start_index = sequence.seq.find(start_base) #inclusive
+        end_index = sequence.seq.rfind(end_base)+1 #exclusive
+        sequence_regions.append((start_index, end_index))
+    
+    seq_rep = []
+
+    for position in range(alignment.get_alignment_length()): 
+        seq_rep.append(0)
+        for region in sequence_regions:
+            if (position >= region[0]) and (position < region[1]): 
+                seq_rep[position] = seq_rep[position] + 1
+    
+    #Determine which sequences pass the min_rep score
+    #Start with the left index
+    #Finish with the right index
+    num_sequence = len(alignment)
+    left_index = 0
+    reverse_right_index = -1
+    while (seq_rep[left_index]/num_sequence) < min_rep: 
+        left_index = left_index + 1
+    while (seq_rep[reverse_right_index]/num_sequence) < min_rep: 
+        reverse_right_index = reverse_right_index - 1
+    right_index = alignment.get_alignment_length() + reverse_right_index + 1
+
+    #Determine the dominant base at each position
+    for position in range(left_index, right_index): 
+        bases = alignment[:,position].upper()
+        
+        num_bases = seq_rep[position]
+
+        counts = {
+            'A':bases.count('A'),
+            'C':bases.count('C'),
+            'T':bases.count('T'),
+            'G':bases.count('G'),
+        }
+        cons_base = max(counts, key=counts.get)
+        if (counts[cons_base]/num_bases) >= min_con: 
+            cons_sequence.append(cons_base)
+        else: 
+            cons_sequence.append('N')
+
 def main(): 
     args = parse_args()
     species_dict = parse_gb(args.gb_path)
@@ -105,7 +173,27 @@ def main():
     
     #Create alignments
     align_path = args.output_path.joinpath('aligned')
-    
+    Path.mkdir(align_path, exist_ok=True)
+    for species_fasta_path in species_path.glob('*.fasta'): 
+        aligned_fasta_path = align_path.joinpath(f'{species_fasta_path.stem}_aligned.fasta')
+        mafft_args = [
+            'mafft',
+            '--auto',
+            str(species_fasta_path),
+        ]
+        result = subprocess.run(mafft_args, capture_output=True)
+        with open(aligned_fasta_path, 'w') as aligned_fasta: 
+            decoded = result.stdout.decode('utf-8')
+            aligned_fasta.write(decoded)
+
+    #Generate consensus sequences
+    consensus_path = args.output_path.joinpath('consensus')
+    Path.mkdir(consensus_path, exist_ok=True)
+    for alignment_fasta_path in align_path.glob('*.fasta'):
+        species_alignment = AlignIO.read(alignment_fasta_path, 'fasta')
+        cons_seq = get_consensus(species_alignment, args.min_cons, args.min_rep)
+        print(alignment_fasta_path.stem)
+        print(cons_seq)
 
 if __name__ == '__main__': 
     main()
