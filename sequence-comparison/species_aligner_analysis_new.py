@@ -46,7 +46,7 @@ def parse_args():
         action='store',
         dest='min_rep',
         type=float,
-        default=1.0,
+        default=0.5,
         help='Minimum number of sequences represented for consensus to be generated',
     )
     args = parser.parse_args()
@@ -96,6 +96,7 @@ def get_consensus(alignment, min_con, min_rep):
     
     #Determine sequence representation
     sequence_regions = []
+    num_sequence = len(alignment)
     for sequence in alignment: 
         start_base = sequence.seq.ungap()[0]
         end_base = sequence.seq.ungap()[-1]
@@ -111,15 +112,17 @@ def get_consensus(alignment, min_con, min_rep):
             if (position >= region[0]) and (position < region[1]): 
                 seq_rep[position] = seq_rep[position] + 1
     
+    seq_rep_ratio = [position/num_sequence for position in seq_rep]
+
     #Determine which sequences pass the min_rep score
     #Start with the left index
     #Finish with the right index
     num_sequence = len(alignment)
     left_index = 0
     reverse_right_index = -1
-    while (seq_rep[left_index]/num_sequence) < min_rep: 
+    while (seq_rep_ratio[left_index]) < min_rep: 
         left_index = left_index + 1
-    while (seq_rep[reverse_right_index]/num_sequence) < min_rep: 
+    while (seq_rep_ratio[reverse_right_index]) < min_rep: 
         reverse_right_index = reverse_right_index - 1
     right_index = alignment.get_alignment_length() + reverse_right_index + 1
 
@@ -140,12 +143,18 @@ def get_consensus(alignment, min_con, min_rep):
             cons_sequence.append(cons_base)
         else: 
             cons_sequence.append('N')
+    return ''.join(cons_sequence)
 
 def main(): 
     args = parse_args()
+    
+    #Parse Genbank file data
+    print('Parsing Genbank file..')
     species_dict = parse_gb(args.gb_path)
+    print('Parsing complete!')
 
-    #Generate metadata for entire analysis: 
+    #Generate metadata for entire analysis:
+    print('Generating metadata...') 
     metadata_path = args.output_path.joinpath(f'{args.gb_path.stem}_metadata.csv')
     with open(metadata_path, 'w', newline='') as metadata_file: 
         num_species = len(species_dict.keys()) - 1 # -1 cause of 'unknown' key
@@ -163,18 +172,23 @@ def main():
         csv_writer = csv.writer(metadata_file)
         csv_writer.writerow(('species', '#_sequences'))
         csv_writer.writerows(seq_per_species)
+    print('Metadata outputted!')
 
     #Output species fasta
+    print('Outputting species fasta files...')
     species_path = args.output_path.joinpath('fasta')
     Path.mkdir(species_path, exist_ok=True)
     for species in species_dict: 
         species_fasta_path = species_path.joinpath(f'{species.replace(" ", "-")}.fasta')
         SeqIO.write(species_dict[species], species_fasta_path, 'fasta')
-    
+    print('Species fasta files outputted!')
+
     #Create alignments
     align_path = args.output_path.joinpath('aligned')
     Path.mkdir(align_path, exist_ok=True)
+    print('Generating alignments..')
     for species_fasta_path in species_path.glob('*.fasta'): 
+        print(f'{species_fasta_path.stem} being aligned...')
         aligned_fasta_path = align_path.joinpath(f'{species_fasta_path.stem}_aligned.fasta')
         mafft_args = [
             'mafft',
@@ -185,15 +199,25 @@ def main():
         with open(aligned_fasta_path, 'w') as aligned_fasta: 
             decoded = result.stdout.decode('utf-8')
             aligned_fasta.write(decoded)
+        print(f'{species_fasta_path.stem} aligned.')
+    print('Alignments completed.')
 
     #Generate consensus sequences
+    print('Generating consensus sequences...')
     consensus_path = args.output_path.joinpath('consensus')
     Path.mkdir(consensus_path, exist_ok=True)
     for alignment_fasta_path in align_path.glob('*.fasta'):
+        species_name = alignment_fasta_path.stem.split('_')[0]
+        print(f'Working on {species_name}')
         species_alignment = AlignIO.read(alignment_fasta_path, 'fasta')
         cons_seq = get_consensus(species_alignment, args.min_cons, args.min_rep)
-        print(alignment_fasta_path.stem)
+        consensus_fasta_path = consensus_path.joinpath(f'{species_name}_consensus.fasta')
+        with open(consensus_fasta_path, 'w') as consensus_fasta: 
+            consensus_fasta.write(f'>{species_name}\n')
+            consensus_fasta.write(f'{cons_seq}')
+        print(f'{species_name} consensus: ')
         print(cons_seq)
+    print('Consensus sequences generated!')
 
 if __name__ == '__main__': 
     main()
