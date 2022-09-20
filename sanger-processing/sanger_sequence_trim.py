@@ -20,6 +20,7 @@ def output_fastas(ab1_data: list, output_path: Path, con_flag: bool) -> None:
             primer_name = data.id.split('_')[1]
             if primer_name not in primer_data.keys(): 
                 primer_data[primer_name] = []
+                primer_data[primer_name].append(data)
             else: 
                 primer_data[primer_name].append(data)
         
