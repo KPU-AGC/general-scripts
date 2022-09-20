@@ -138,15 +138,17 @@ def main():
             print(f'{ab1_file_trim.id} differs from filename {ab1_file_id}. Changing ID to filename ID..')
             ab1_file_trim.id = ab1_file_id
         #quality_score = sum(ab1_file.letter_annotations['phred_quality'])/len(ab1_file.letter_annotations['phred_quality'])
-        metadata.append((ab1_file_trim.id, ab1_file.annotations['abif_raw']['TrSc1'], ab1_file.annotations['abif_raw']['PuSc1'], left_trim, right_trim))
+        trace_score = ab1_file.annotations['abif_raw']['TrSc1'] if 'TrSc1' in ab1_file.annotations['abif_raw'] else -1
+        pup_score = ab1_file.annotations['abif_raw']['PuSc1'] if 'PuSc1' in ab1_file.annotations['abif_raw'] else -1
         if not qc_flag:
             ab1_data.append(ab1_file_trim)
         else: 
             if (
-                ab1_file.annotations['abif_raw']['TrSc1'] > min_trace 
-                and ab1_file.annotations['abif_raw']['PuSc1'] > min_pup
+                trace_score > min_trace 
+                and pup_score > min_pup
             ): 
                 ab1_data.append(ab1_file_trim)
+        metadata.append((ab1_file_trim.id, trace_score, pup_score, left_trim, right_trim))
 
     output_fastas(ab1_data, output_path, con_flag)
 
