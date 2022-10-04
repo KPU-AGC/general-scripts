@@ -1,283 +1,25 @@
-from Bio import SeqIO, AlignIO, Seq
-import argparse
-import pathlib
+"""
+species_aligner_analysis.py - This script takes a Genbank file containing sequences from several different 
+species at a specific target site, aligns the sequences by species, and generates consensus sequences for
+each species. 
+
+Author: Michael Ke
+Version: 1.0
+Date: September 1st 2022
+"""
+
+from argparse import ArgumentParser
+from pathlib import Path
 import csv
 import subprocess
-
-class genbankHandler(): 
-    def __init__(self, gb_path, output_path): 
-        def parse_gb(gb_path): 
-            gb_data = []
-            data = SeqIO.parse(gb_path, 'gb')
-            for item in data: 
-                gb_data.append(item)
-            return gb_data
-        #data - contains raw gb file
-        self.data = parse_gb(gb_path)
-        #id - comes from gb file name
-        self.id = gb_path.stem
-        self.path = output_path
-        self.fasta_paths = []
-        self.alignment_paths = []
-        self.consensus_path = None
-        #gb - dictionary of species names mapped to a list of data corresponding to each sequence belonging to that species
-        self.gb = dict()
-        self.species_keys = self.gb.keys()
-        self.consensus_sequences = None
-        self._split_gb_by_species()
-
-    def _split_gb_by_species(self):
-        for gb_data in self.data: 
-            organism = gb_data.annotations['organism']
-            species_name = organism.split(' ')[1]
-            #If there's no clear species designation, ignore
-            if (species_name != 'sp.') and (species_name != 'cf.') and (species_name !='aff.'):
-                if organism not in self.gb.keys(): 
-                    self.gb[organism] = [gb_data]
-                else: 
-                    self.gb[organism].append(gb_data)
-
-    def generate_metadata(self): 
-        #We want to know the following: 
-        #1) Number of species present
-        #2) Number of species that did not have a species call
-        #3) Number of sequences belonging to each species
-        no_species_call = []
-        #Identifying which accessions do not have a species call...
-        for gb_data in self.data: 
-            organism = gb_data.annotations['organism']
-            accession= gb_data.id
-            species_name = organism.split(' ')[1]
-            if (species_name == 'sp.') or (species_name == 'cf.') or (species_name =='aff.'): 
-                no_species_call.append((organism, accession))
-        #Get number of species
-        num_species = len(self.gb.keys())
-
-        #Open the file
-        metadata_file_path = self.path.joinpath(f'{self.id}_metadata.csv')
-        metadata_file = open(metadata_file_path, 'w')
-        metadata_file.write(f'Species ({str(num_species)}):\n')
-        #Write the species and the number of sequences available for each one
-        for species in self.gb: 
-            metadata_file.write(f'{species},{len(self.gb[species])}\n')
-        #write the no species
-        metadata_file.write(f'No species call ({str(len(no_species_call))}):\n')
-        for sequence in no_species_call: 
-            metadata_file.write(f'{sequence[0]},{sequence[1]}\n')
-        metadata_file.close()
-        
-    def output_species_gb(self): 
-        for organism in self.gb.keys(): 
-            species_path = self.path.joinpath(f'{organism.replace(" ","-")}_data.gb')
-            SeqIO.write(self.gb[organism], species_path, 'gb')
-
-    def output_species_fasta(self): 
-        for organism in self.gb.keys(): 
-            species_path = self.path.joinpath(f'{organism.replace(" ","-")}.fasta')
-            SeqIO.write(self.gb[organism], species_path, 'fasta')
-            self.fasta_paths.append(pathlib.Path(species_path))
-
-    def output_species_metadata(self): 
-        #Loop through each organism
-        for organism in self.gb.keys(): 
-            species_path = self.path.joinpath(f'{organism.replace(" ","-")}_metadata.csv')
-            all_gb_data = []
-            #Loop through each Genbank file
-            for gb in self.gb[organism]: 
-                gb_metadata = [
-                    gb.id, 
-                    len(gb.seq), 
-                    gb.description,
-                    gb.annotations['source'], 
-                ]
-                #Identify source feature, then store data
-                for feature in gb.features: 
-                    if feature.type == 'source': 
-                        if 'isolate' in feature.qualifiers: 
-                            gb_metadata.append(feature.qualifiers['isolate'])
-                        else: 
-                            gb_metadata.append('')
-                        if 'host' in feature.qualifiers: 
-                            gb_metadata.append(feature.qualifiers['host'])
-                        else: 
-                            gb_metadata.append('')
-                        if 'country' in feature.qualifiers: 
-                            gb_metadata.append(feature.qualifiers['country'])
-                        break
-                all_gb_data.append(gb_metadata)
-            metadata_output = open(species_path, 'w', newline='')
-            csv_writer = csv.writer(metadata_output)
-            csv_writer.writerow(
-                (
-                    'accession_id',
-                    'seq_len',
-                    'description',
-                    'organism',
-                    'isolate',
-                    'host',
-                    'country'
-                )
-            )
-            csv_writer.writerows(all_gb_data)
-            metadata_output.close()
-
-    def generate_species_alignment(self): 
-        for fasta_path in self.fasta_paths: 
-            aligned_path = fasta_path.with_name(fasta_path.stem + '_aligned.fasta')
-            args =[
-                'mafft',
-                '--auto',
-                str(fasta_path), 
-            ]
-            result = subprocess.run(args, capture_output=True)
-            decoded = result.stdout.decode('utf-8')
-            output_file = open(aligned_path, 'w')
-            output_file.write(decoded)
-            output_file.close()
-            self.alignment_paths.append(pathlib.Path(aligned_path))
-
-    def generate_consensus(self): 
-        def get_seq_position_info(alignment): 
-            """
-            Get information for each position of the alignment.
-            Output is in list format, with each index corresponding to the 0-based position
-            of the alignment. 
-            Each index contains dictionary with following information: 
-            pos - position number
-            accessions - the accessions represented at that position
-            bases - base calls in corresponding order of accessions
-            seqs_rep - number of accessions represented at that position
-            p_seq_rep - percentage of accessions represented at that position
-            """
-            def get_sequence_regions(alignment): 
-                """
-                Identify the regions that each accession spans on the alignment.
-                Algorithm: 
-                1) From beginning of sequence, keep going until position is not '-',
-                then record the position as the start of the region
-                2) From the end of the sequence, go in reverse until position is not '-',
-                then record the position as the end of the region
-                3) Return tuple --> (accession, start, end)
-                """
-                def get_sequence_region(accession): 
-                    #Variables
-                    f_start = False
-                    f_end = False
-                    start = 0
-                    end = 0
-                    #Data from SeqRecord object 
-                    sequence = accession.seq
-                    acc = (accession.id).split('.')[0]
-                    #From beginning of the sequence, keep going until position is not '-'
-                    i = 0
-                    while (f_start is False): 
-                        if sequence[i] != '-': 
-                            start = i
-                            f_start = True
-                        i = i + 1
-                    #From ending of the sequence, keep going until position is not '-'
-                    i = -1
-                    while (f_end is False): 
-                        if sequence[i] != '-':
-                            end = i%len(sequence) #Translate negative index to positive index
-                            f_end = True
-                        i = i - 1
-                    return ((acc, start, end))
-                sequence_regions = []
-                for accession in alignment: 
-                    sequence_regions.append(get_sequence_region(accession))
-                return sequence_regions
-            def get_contributing_seqs(position, list_seq_region):
-                """
-                Given a position and the list of sequence regions for each accession,
-                identify which accessions are represented
-                """
-                list_accession = []
-                list_indices = []
-                for sequence in list_seq_region:
-                    if (position >= sequence[1]) and (position <= sequence[2]): 
-                        list_accession.append(sequence[0])
-                        list_indices.append(list_seq_region.index(sequence))
-                return list_accession, list_indices
-            list_seq_position_info = []
-            #Get sequence regions
-            list_seq_regions = get_sequence_regions(alignment)
-            num_accessions = len(alignment)
-            for position in range(alignment.get_alignment_length()):
-                list_accessions, list_indices = get_contributing_seqs(position, list_seq_regions)
-                list_bases = []
-                #Append the basecalls of every contributing sequence at specified position
-                for index in list_indices: 
-                    list_bases.append(alignment[index].seq[position])
-                position_info = {
-                    'pos':position,
-                    'accessions':tuple(list_accessions),
-                    'bases':tuple(list_bases),
-                    'seqs_rep':len(list_accessions),
-                    'p_seq_rep':len(list_accessions)/num_accessions,
-                }
-                list_seq_position_info.append(position_info)
-            return list_seq_position_info
-        def get_consensus_seq(seq_info): 
-            """
-            Determine the consensus sequence of an alignment, and create position matrix
-            Definition of consensus: most common base represented at that position. 
-            """
-            consensus_sequence = []
-            for position in seq_info: 
-                #Ignore any ambiguous basecalls - accept A, T, C, G, and 'gap'
-                base_counts = {
-                    'a':position['bases'].count('a')+position['bases'].count('A'),
-                    't':position['bases'].count('t')+position['bases'].count('T'),
-                    'c':position['bases'].count('c')+position['bases'].count('C'),
-                    'g':position['bases'].count('g')+position['bases'].count('G'),
-                    '-':position['bases'].count('-'),
-                }
-                #print(base_counts)
-                max_basecalls = [key for key, count in base_counts.items() if count == max(base_counts.values())]
-                if len(max_basecalls) == 1: 
-                    consensus_sequence.append(max_basecalls[0])
-                else: 
-                    consensus_sequence.append('n')
-            return str(Seq.Seq(''.join(consensus_sequence)).ungap(gap='-'))
-        def create_fasta(cons_seqs, output_path): 
-            output_file = open(output_path, 'w')
-            for key in cons_seqs: 
-                output_file.write(f'>{key}\n')
-                output_file.write(cons_seqs[key])
-                output_file.write('\n')
-            output_file.close()
-        consensus_seqs = dict()
-        for alignment_path in self.alignment_paths: 
-            alignment = AlignIO.read(alignment_path, 'fasta')
-            alignment_id = alignment_path.name.split('_')[0]
-            seq_info = get_seq_position_info(alignment)
-            consensus_seq = get_consensus_seq(seq_info)
-            consensus_seqs[alignment_id] = consensus_seq
-        self.consensus_sequences = consensus_seqs
-        #Output
-        self.consensus_path = self.path.joinpath(self.id + '_consensus.fasta')
-        create_fasta(self.consensus_sequences, self.consensus_path)
-    
-    def generate_consensus_alignment(self): 
-        consensus_alignment_path = self.path.joinpath(self.id + '_consensus_aligned.fasta')
-        args =[
-                'mafft',
-                '--auto',
-                str(self.consensus_path), 
-            ]
-        result = subprocess.run(args, capture_output=True)
-        decoded = result.stdout.decode('utf-8')
-        output_file = open(consensus_alignment_path, 'w')
-        output_file.write(decoded)
-        output_file.close()
+from Bio import SeqIO, AlignIO, Seq
 
 def parse_args(): 
-    parser = argparse.ArgumentParser('Analyze and align multiple sequences for genus-level analysis')
+    parser = ArgumentParser('Analyze and align multiple sequences for genus-level analysis')
     parser.add_argument(
-        'genus_gb', 
+        'gb_path', 
         action='store',
-        type=pathlib.Path,
+        type=Path,
         help='path to genbank file containing all data'
     )
     parser.add_argument(
@@ -286,31 +28,196 @@ def parse_args():
         action='store',
         dest='output_path',
         default=None,
-        type=pathlib.Path,
+        type=Path,
         help='Output destination path',
     )
+    parser.add_argument(
+        '--min_cons',
+        '-c',
+        action='store',
+        dest='min_cons',
+        type=float,
+        default=0.9,
+        help='Minimum percentage (decimal format) of identical bases for consensus base to be called'
+    )
+    parser.add_argument(
+        '--min_rep',
+        '-r', 
+        action='store',
+        dest='min_rep',
+        type=float,
+        default=0.5,
+        help='Minimum number of sequences represented for consensus to be generated',
+    )
     args = parser.parse_args()
+
     if args.output_path is None: 
-        args.output_path = args.genus_gb.parent
-    return (args.genus_gb, args.output_path)
+        args.output_path = args.gb_path.parent
+
+    return args
+
+def parse_gb(gb_path : Path) -> list: 
+    """
+    Parse a Genbank file and produce a dictionary containing lists of SeqRecords
+    organised by species. 
+
+    Parameters: 
+    gb_path - path to the Genbank file
+
+    Return: 
+    species_dict - key corresponds to species name, lists of SeqRecords belonging 
+    to that species. 
+    """
+    list_gb_data = [gb for gb in SeqIO.parse(gb_path, 'gb')]
+    species_dict = {
+        'unknown':[]
+    }
+    
+    for gb_entry in list_gb_data: 
+        species_key = gb_entry.annotations['organism']
+        species_name = species_key.split(' ')[1]
+        #If there's no clear species designation, append to unknown, 
+        #Otherwise, append it to the correct species list
+        if not(species_name in ['sp.', 'aff.', 'cf.']):
+            if species_key not in species_dict:
+                species_dict[species_key] = [gb_entry]
+            else: 
+                species_dict[species_key].append(gb_entry)
+        else: 
+             species_dict['unknown'].append(gb_entry)
+    
+    return species_dict
+
+def get_consensus(alignment, min_con, min_rep):
+    """
+    Get the consensus sequence
+    """
+    cons_sequence = []
+    
+    #Determine sequence representation
+    sequence_regions = []
+    num_sequence = len(alignment)
+    for sequence in alignment: 
+        start_base = sequence.seq.ungap()[0]
+        end_base = sequence.seq.ungap()[-1]
+        start_index = sequence.seq.find(start_base) #inclusive
+        end_index = sequence.seq.rfind(end_base)+1 #exclusive
+        sequence_regions.append((start_index, end_index))
+    
+    seq_rep = []
+
+    for position in range(alignment.get_alignment_length()): 
+        seq_rep.append(0)
+        for region in sequence_regions:
+            if (position >= region[0]) and (position < region[1]): 
+                seq_rep[position] = seq_rep[position] + 1
+    
+    seq_rep_ratio = [position/num_sequence for position in seq_rep]
+
+    #Determine which sequences pass the min_rep score
+    #Start with the left index
+    #Finish with the right index
+    num_sequence = len(alignment)
+    left_index = 0
+    reverse_right_index = -1
+    while (seq_rep_ratio[left_index]) < min_rep: 
+        left_index = left_index + 1
+    while (seq_rep_ratio[reverse_right_index]) < min_rep: 
+        reverse_right_index = reverse_right_index - 1
+    right_index = alignment.get_alignment_length() + reverse_right_index + 1
+
+    #Determine the dominant base at each position
+    for position in range(left_index, right_index): 
+        bases = alignment[:,position].upper()
+        
+        num_bases = seq_rep[position]
+
+        counts = {
+            'A':bases.count('A'),
+            'C':bases.count('C'),
+            'T':bases.count('T'),
+            'G':bases.count('G'),
+        }
+        cons_base = max(counts, key=counts.get)
+        if (counts[cons_base]/num_bases) >= min_con: 
+            cons_sequence.append(cons_base)
+        else: 
+            cons_sequence.append('N')
+    return ''.join(cons_sequence)
 
 def main(): 
-    """
-    Algorithm: 
-    1) Open genus genbank file --> this is generated using Entrez query on NCBI Nucleotide
-    2) Split gb into several species genbank files
-    3) Align .fasta files for each species
+    args = parse_args()
+    
+    #Parse Genbank file data
+    print('Parsing Genbank file..')
+    species_dict = parse_gb(args.gb_path)
+    print('Parsing complete!')
 
-    """
-    genus_gb_path, output_path = parse_args()
-    genus_data = genbankHandler(genus_gb_path, output_path)
-    genus_data.output_species_gb()
-    genus_data.output_species_fasta()
-    genus_data.output_species_metadata()
-    genus_data.generate_species_alignment()
-    genus_data.generate_consensus()
-    genus_data.generate_consensus_alignment()
-    genus_data.generate_metadata()
+    #Generate metadata for entire analysis:
+    print('Generating metadata...') 
+    metadata_path = args.output_path.joinpath(f'{args.gb_path.stem}_metadata.csv')
+    with open(metadata_path, 'w', newline='') as metadata_file: 
+        num_species = len(species_dict.keys()) - 1 # -1 cause of 'unknown' key
+        num_unknown = len(species_dict['unknown'])
+
+        #Determine the number sequences available for each species
+        seq_per_species = []
+        for species in species_dict: 
+            seq_per_species.append((species, len(species_dict[species])))
+        seq_per_species.sort(key=lambda x: x[1], reverse=True)
+
+        metadata_file.write(f'Total # of species: {str(num_species)}\n')
+        metadata_file.write(f'# Sequences w/o species identity: {str(num_unknown)}\n')
+
+        csv_writer = csv.writer(metadata_file)
+        csv_writer.writerow(('species', '#_sequences'))
+        csv_writer.writerows(seq_per_species)
+    print('Metadata outputted!')
+
+    #Output species fasta
+    print('Outputting species fasta files...')
+    species_path = args.output_path.joinpath('fasta')
+    Path.mkdir(species_path, exist_ok=True)
+    for species in species_dict: 
+        species_fasta_path = species_path.joinpath(f'{species.replace(" ", "-")}.fasta')
+        SeqIO.write(species_dict[species], species_fasta_path, 'fasta')
+    print('Species fasta files outputted!')
+
+    #Create alignments
+    align_path = args.output_path.joinpath('aligned')
+    Path.mkdir(align_path, exist_ok=True)
+    print('Generating alignments..')
+    for species_fasta_path in species_path.glob('*.fasta'): 
+        print(f'{species_fasta_path.stem} being aligned...')
+        aligned_fasta_path = align_path.joinpath(f'{species_fasta_path.stem}_aligned.fasta')
+        mafft_args = [
+            'mafft',
+            '--auto',
+            str(species_fasta_path),
+        ]
+        result = subprocess.run(mafft_args, capture_output=True)
+        with open(aligned_fasta_path, 'w') as aligned_fasta: 
+            decoded = result.stdout.decode('utf-8')
+            aligned_fasta.write(decoded)
+        print(f'{species_fasta_path.stem} aligned.')
+    print('Alignments completed.')
+
+    #Generate consensus sequences
+    print('Generating consensus sequences...')
+    consensus_path = args.output_path.joinpath('consensus')
+    Path.mkdir(consensus_path, exist_ok=True)
+    for alignment_fasta_path in align_path.glob('*.fasta'):
+        species_name = alignment_fasta_path.stem.split('_')[0]
+        print(f'Working on {species_name}')
+        species_alignment = AlignIO.read(alignment_fasta_path, 'fasta')
+        cons_seq = get_consensus(species_alignment, args.min_cons, args.min_rep)
+        consensus_fasta_path = consensus_path.joinpath(f'{species_name}_consensus.fasta')
+        with open(consensus_fasta_path, 'w') as consensus_fasta: 
+            consensus_fasta.write(f'>{species_name}\n')
+            consensus_fasta.write(f'{cons_seq}')
+        print(f'{species_name} consensus: ')
+        print(cons_seq)
+    print('Consensus sequences generated!')
 
 if __name__ == '__main__': 
     main()
