@@ -66,6 +66,9 @@ def main():
     """ Generate a taxid map from .gb file data. """
     args = get_args()
     
+    # make a new directory for the output if specified (including parents) if the directory doesnt exist
+    args.output_path.mkdir(parents=True, exist_ok=True)
+
     num_seq: int = 0
     num_unidentified: int = 0
 
