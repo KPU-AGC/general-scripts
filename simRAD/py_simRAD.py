@@ -3,7 +3,7 @@
 Purpose: Perform double restriction digest on a given genome.
 """
 __author__ = "Erick Samera; Michael Ke; ACK: Joon Lee"
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 __comments__ = "more biologically accurate"
 # --------------------------------------------------
 from argparse import (
@@ -48,7 +48,7 @@ def get_args() -> Namespace:
         metavar='INT',
         type=int,
         default=100,
-        help="min value for bins (inclusive), first bin will contain fragments up to first bin size (default=100)")
+        help="min value for bins (inclusive) (default=100)")
     group_binning_parser.add_argument(
         '-s',
         '--step',
@@ -105,6 +105,10 @@ def get_args() -> Namespace:
     invalid_enzymes = [enzyme for enzyme in args.enzymes.split(';') if enzyme not in Restriction.AllEnzymes.elements()]
     if invalid_enzymes: 
         parser.error(f"Couldn't process the following enzymes: {' '.join(invalid_enzymes)}")
+    if not args.bin_min < args.bin_max:
+        parser.error(f"--min/-m must be less than --max/-M")
+    if not args.bin_step <= (args.bin_max - args.bin_min):
+        parser.error(f"Can't produce a step of {args.bin_step} in {args.bin_min} to {args.bin_max}")
 
     return args
 # --------------------------------------------------
@@ -234,7 +238,6 @@ def main() -> None:
     for combination in rst_enz_combinations:
         combination_str = '-'.join(list(combination))
 
-        restriction_fragments_per_combination: list = []
         for chr in SeqIO.parse(args.input_path, 'fasta'):
             # ignore the mitochrondrial genome, only do nuclear
             if 'mitochondrion' in chr.description: continue
@@ -255,10 +258,10 @@ def main() -> None:
                 for fragment_len in restriction_fragments:
                     bin_key = _ceil_round(fragment_len, args.bin_step)
                     bin_keys = [int(key) for key in fragment_combination_counts[combination_str] if str(key).isnumeric()]
-                    
+
                     # if the bin_key is 0, this is probably a mistake
                     if bin_key == 0: continue
-                    
+
                     # count fragments in the correct bin
                     if bin_key in bin_keys:
                         fragment_combination_counts[combination_str][bin_key] += 1
@@ -267,7 +270,6 @@ def main() -> None:
                     
                     # add to the total
                     fragment_combination_counts[combination_str]['total'] += 1
-                restriction_fragments_per_combination += restriction_fragments
 
             elif not args.use_fast:
                 restriction_enzymes = Restriction.RestrictionBatch(list(combination))
@@ -280,7 +282,7 @@ def main() -> None:
                 for fragment in restriction_fragments:
                     bin_key = _ceil_round(len(fragment), args.bin_step)
                     bin_keys = [int(key) for key in fragment_combination_counts[combination_str] if str(key).isnumeric()]
-                    
+
                     # if the bin_key is 0, this is probably a mistake
                     if bin_key == 0: continue
 
@@ -292,10 +294,15 @@ def main() -> None:
 
                     # add to the total
                     fragment_combination_counts[combination_str]['total'] += 1
-                restriction_fragments_per_combination += [len(fragment) for fragment in restriction_fragments]
 
     # generate DataFrame output
-    pd.DataFrame.from_dict(fragment_combination_counts, orient='index').to_csv(args.output_path)
+    bin_keys: list = [int(key) for key in fragment_combination_counts[combination_str] if str(key).isnumeric()]
+    rename_keys_dict: dict = {bin_key: f'{bin_keys[i-1]}-{bin_key}' for i, bin_key in enumerate(bin_keys) if 0 < i < len(bin_keys)}
+    rename_keys_dict.update({min(bin_keys): f'< {min(bin_keys)}'})
+
+    pd.DataFrame.from_dict(fragment_combination_counts, orient='index')\
+        .rename(columns=rename_keys_dict)\
+        .to_csv(args.output_path)
 # # --------------------------------------------------
 if __name__ == '__main__':
     main()
