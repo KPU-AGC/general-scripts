@@ -3,7 +3,7 @@
 Purpose: Perform double restriction digest on a given genome.
 """
 __author__ = "Erick Samera; Michael Ke; ACK: Joon Lee"
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 __comments__ = "more biologically accurate"
 # --------------------------------------------------
 from argparse import (
@@ -136,15 +136,13 @@ def _generate_fragment_counts_dict(rst_enz_combos_arg: list, bins_arg: range) ->
         fragment_combination_counts[combination_str].update({bin_num: 0 for bin_num in bins_arg})
         fragment_combination_counts[combination_str][f'> {bins_arg[-1]}'] = 0
     return fragment_combination_counts
-def _generate_restriction_fragments_fast(slice_positions_arg: list, end_pos_arg: int) -> list:
+def _generate_restriction_fragments_fast(slice_positions_arg: list) -> list:
     """
     From a list of cutting positions, do the cutting and generate a list of fragment sizes.
 
     Parameters:
         slice_positions_arg: list
             list of slice positions from the restriction enzymes
-        end_pos_arg: int
-            the last position in a given chromosome
     
     Returns:
         (list)
@@ -152,11 +150,12 @@ def _generate_restriction_fragments_fast(slice_positions_arg: list, end_pos_arg:
     """
     
     restriction_fragments: list = []
-
+    len_slice_positions: int = len(slice_positions_arg)-1
     for i_pos, _ in enumerate(slice_positions_arg):
-        start_pos = slice_positions_arg[i_pos] if i_pos > 0 else 0
-        end_pos = slice_positions_arg[i_pos + 1] if i_pos < len(slice_positions_arg) - 1 else end_pos_arg
-        restriction_fragments.append(end_pos - start_pos)
+        if i_pos < len_slice_positions:
+            start_pos = slice_positions_arg[i_pos]
+            end_pos = slice_positions_arg[i_pos + 1]
+            restriction_fragments.append(end_pos - start_pos)
     return restriction_fragments
 def _generate_restriction_fragments(seq_arg: SeqRecord, restriction_enzymes_arg: Restriction.RestrictionBatch, buffer_arg: int, fasta_output_path_arg: Path) -> list:
     """
@@ -248,12 +247,10 @@ def main() -> None:
                 restriction_result = restriction_batch.search(chr.seq.upper())
                 # using (end - beginning), add 0 position so that first fragment is the entire length from start to that position
                 # and remove duplicate positions from isoschizomers or similar cut sites
-                slice_positions: list = sorted(set([0] + [slice_pos for _, enzyme_slice_list in restriction_result.items() for slice_pos in enzyme_slice_list]))
+                slice_positions: list = sorted(set([0] + [slice_pos for _, enzyme_slice_list in restriction_result.items() for slice_pos in enzyme_slice_list] + [len(chr.seq)]))
 
                 # generate "fragments" by cutting between slice positions
-                restriction_fragments = _generate_restriction_fragments_fast(
-                    slice_positions_arg=slice_positions, 
-                    end_pos_arg=len(chr.seq))
+                restriction_fragments = _generate_restriction_fragments_fast(slice_positions)
                 # iteratively add fragments to bins and total
                 for fragment_len in restriction_fragments:
                     bin_key = _ceil_round(fragment_len, args.bin_step)
@@ -274,9 +271,9 @@ def main() -> None:
             elif not args.use_fast:
                 restriction_enzymes = Restriction.RestrictionBatch(list(combination))
                 restriction_fragments = _generate_restriction_fragments(
-                    seq_arg=chr.seq, 
-                    restriction_enzymes_arg=restriction_enzymes, 
-                    buffer_arg=args.buffer, 
+                    seq_arg=chr.seq,
+                    restriction_enzymes_arg=restriction_enzymes,
+                    buffer_arg=args.buffer,
                     fasta_output_path_arg=args.output_fasta_dir)
 
                 for fragment in restriction_fragments:
