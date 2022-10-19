@@ -18,6 +18,7 @@ from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from Bio.Restriction import Restriction
 import pandas as pd
+# --------------------------------------------------
 def get_args() -> Namespace:
     """ Get command-line arguments """
 
