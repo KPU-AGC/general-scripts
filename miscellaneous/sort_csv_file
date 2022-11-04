@@ -1,0 +1,49 @@
+""" 
+Read csv files
+"""
+
+from argparse import ArgumentParser
+from pathlib import Path
+import csv
+
+def parse_args():
+    parser = ArgumentParser (
+        description='Read csv files', 
+        epilog='v1.0'
+    )
+
+    parser.add_argument(
+        'input_csv',
+        type= Path,
+        action= 'store',
+        help= 'Input path for csv files.'
+    )
+
+    parser.add_argument(
+        '-o', '--output',
+        dest='output_csv_path',
+        action='store',
+        type= Path,
+        help='Optional output path for csv files.'
+    )
+
+    args = parser.parse_args()
+    positional_argument = args.positional_argument
+    optional_argument = args.optional_argument #should this be output_csv instead of optional_argument?
+
+    return args
+
+
+def sort_files(input_csv: list, output_csv_path: Path):
+    '''Accepts a list and returns sorted list'''
+
+
+def main():
+    ''' Sort csv'''
+
+    args = parse_args
+    input_path =  pathlib.Path('/Users/ekamnijjar/documents/python_practice/example-csv.csv')
+    input_csv = input_path.stem
+    csv_list = []
+
+   
