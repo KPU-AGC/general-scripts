@@ -1,27 +1,32 @@
+__description__ =\
 """
 docstrings_example.py - This module is an example of how you should write docstrings. 
 It will provide an example of module docstrings, class docstrings, and function docstrings. 
 
-Classes: 
+Classes
+-------
 ExampleClass : class that is an example of a class
 
-Functions: 
+Functions
+---------
 example_function : accepts an int and a str, and returns a dictionary of those parameters
-
-Author: Michael Ke
-Version: 1.0
-Date Last Modified: August 25th, 2022
 """
+
+__author__  = "Michael Ke"
+__version__ = "1.0.0"
+__comments__ = "stable"
 
 class ExampleClass(): 
     """
     ExampleClass - this class serves as an example of a class, and is used to illustrate
     the types of docstrings that are needed to describe a class. 
 
-    Attributes:
+    Attributes
+    ----------
     parameter : integer value that is an integer
 
-    Methods: 
+    Methods
+    -------
     example_simple_method : return sum of parameter and parameter2
     example_complex_method : return a list of elements with the value of parameter
     """
@@ -37,10 +42,15 @@ class ExampleClass():
         """
         Return a list of elements with the value of self.parameter
         
-        Parameters: 
-        parameter2 : number of elements the returned list should have
-        Returns: 
-        listy_mclistface : list of length parameter2 of self.parameter
+        Parameters
+        ----------
+        parameter2 : int
+            number of elements the returned list should have
+        
+        Return
+        ------
+        listy_mclistface : list
+            list of length parameter2 of self.parameter
         """
         
         listy_mclistface = []
@@ -52,12 +62,16 @@ def example_function(parameter1 : int, parameter2: str) -> dict:
     """
     Return a dictionary of the supplied parameters with the names of their type
 
-    Parameters: 
-    parameter1 : integer that is an integer
-    parameter2 : string that is a string
+    Parameters
+    ----------
+    parameter1 : int
+        integer that is an integer
+    parameter2 : str
+        string that is a string
 
     Return: 
-    dictionary_mcdictionaryface : dictionary of supplied parameters
+    dictionary_mcdictionaryface : dict
+        dictionary of supplied parameters
     """
 
     dictionary_mcdictionaryface = {}
