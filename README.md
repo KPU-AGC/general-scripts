@@ -36,9 +36,7 @@ Miscellaneous scripts for dealing with common file types.
 | **batch_rename.py** | used to sanitize SeqStudio ab1 file names to fit the formats required for our scripts |
 | **batch_reverse_complement.py** | generate reverse complements of several sequences |
 | **convert_gb_fasta.py** | extract .fasta sequences from Genbank files |
-| **bisearch_primer_design.py** | design bisulfite PCR primers for a given target region |
 | **generate_sequence.py** | in-silico generation of random DNA sequences |
-| **read_sim_vcf_prep.py** |  |
 | **calc_ta.py** | calculate melting temperatures of several primer sets |
 
 ## sanger-processing
