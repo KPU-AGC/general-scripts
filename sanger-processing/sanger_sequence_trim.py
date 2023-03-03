@@ -9,7 +9,7 @@ from sys import exit
 import csv
 from Bio import SeqIO
 
-def output_fastas(ab1_data: list, output_path: Path, con_flag: bool) -> None: 
+def output_fastas(ab1_data: list, output_path: Path, con_flag: bool, single_flag: bool) -> None: 
     """
     Outputs the fastas either concatenated by primer set or into individual files
     """
@@ -27,7 +27,10 @@ def output_fastas(ab1_data: list, output_path: Path, con_flag: bool) -> None:
         #Write individual primer data
         for primer_name in primer_data.keys(): 
             fasta_output_path = output_path.joinpath(f'{primer_name}_sequences.fasta')
-            SeqIO.write(primer_data[primer_name], fasta_output_path, 'fasta')
+            if single_flag: 
+                SeqIO.write(primer_data[primer_name], fasta_output_path, 'fasta-2line')
+            else:
+                SeqIO.write(primer_data[primer_name], fasta_output_path, 'fasta')
     else:  
         for data in ab1_data: 
             fasta_output_path = output_path.joinpath(f'{data.id}_trimmed.fasta')
@@ -57,6 +60,12 @@ def parse_args():
         dest='con_flag',
         action='store_true',
         help='Flag to concatenate by primers.'
+    )
+    parser.add_argument(
+        '-s', '--oneline',
+        dest='single_flag',
+        action='store_true',
+        help='Flag to output each fasta entry onto one line.'
     )
     qc_group = parser.add_argument_group('qc_options')
     qc_group.add_argument(
@@ -91,8 +100,11 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    #Setting up args
     ab1_path = args.ab1_path
     con_flag = args.con_flag
+    single_flag = args.single_flag
     qc_flag = args.qc_flag
     min_trace = args.min_trace
     min_pup = args.min_pup
@@ -113,16 +125,17 @@ def main():
         
         if len(ab1_file_paths) <= 0:
             raise ValueError
-
     except NotADirectoryError: 
         print('Not a directory. Terminating program..')
         exit()
-
     except ValueError:
         print('No ab1 files were found at the directory. Terminating program..')
         exit()
 
+    #Trimming process for each file
+    #------------------------------
     for ab1_file_path in ab1_file_paths:
+        #Import
         ab1_file = SeqIO.read(ab1_file_path, 'abi')
         ab1_file_trim = SeqIO.read(ab1_file_path, 'abi-trim')
 
@@ -135,12 +148,21 @@ def main():
         #TODO: validation of proper filename convention
         #To allow for manual correction of ID, the ab1 file name ID is used instead of the ab1 file ID
         ab1_file_id = '_'.join(ab1_file_path.stem.split('_')[0:2])
+        
+        #Check: see if the ab1 file ID is the same as the filename ID. This is to allow for manual correction of sequence file names.
         if ab1_file_trim.id != ab1_file_id: 
             print(f'{ab1_file_trim.id} differs from filename {ab1_file_id}. Changing ID to filename ID..')
             ab1_file_trim.id = ab1_file_id
+
         #quality_score = sum(ab1_file.letter_annotations['phred_quality'])/len(ab1_file.letter_annotations['phred_quality'])
+
+        #Trace score and PUP score in the ab1 file structure.
+        #NOTE: these are lost in the trimmed file, so we have to go back to the original imported ab1 file in order
+        #      to find these.
         trace_score = ab1_file.annotations['abif_raw']['TrSc1'] if 'TrSc1' in ab1_file.annotations['abif_raw'] else -1
         pup_score = ab1_file.annotations['abif_raw']['PuSc1'] if 'PuSc1' in ab1_file.annotations['abif_raw'] else -1
+
+        #Check for QC flag
         if not qc_flag:
             ab1_data.append(ab1_file_trim)
         else: 
@@ -151,7 +173,7 @@ def main():
                 ab1_data.append(ab1_file_trim)
         metadata.append((ab1_file_trim.id, trace_score, pup_score, left_trim, right_trim))
 
-    output_fastas(ab1_data, output_path, con_flag)
+    output_fastas(ab1_data, output_path, con_flag, single_flag)
 
     #Output metadata
     metadata_path = output_path.joinpath('metadata.csv')
