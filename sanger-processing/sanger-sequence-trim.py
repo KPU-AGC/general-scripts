@@ -1,18 +1,27 @@
 """
-Author : Michael Ke
-Date   : 2022-08-22
-Purpose: From ab1 files, trims and outputs sequence as fasta files. 
+sanger-sequence-trim.py - script to automate trimming and QC of ab1 sequencing files.
+
+
 """
+
+__author__ = 'Michael Ke'
+__version__ = '1.1.0'
+__comments__ = 'stable'
+
+#Standard libraries
 from argparse import ArgumentParser
+import csv
 from pathlib import Path
 from sys import exit
 import csv
+#Third-party modules
 from Bio import SeqIO
 
 def output_fastas(ab1_data: list, output_path: Path, con_flag: bool, single_flag: bool) -> None: 
     """
     Outputs the fastas either concatenated by primer set or into individual files
     """
+    #Concatenate by primers
     if con_flag: 
         #Determine which primers are present
         primer_data = dict()
@@ -27,10 +36,12 @@ def output_fastas(ab1_data: list, output_path: Path, con_flag: bool, single_flag
         #Write individual primer data
         for primer_name in primer_data.keys(): 
             fasta_output_path = output_path.joinpath(f'{primer_name}_sequences.fasta')
+            #Write to 2-line format if specified; otherwise, follow standard FASTA format
             if single_flag: 
                 SeqIO.write(primer_data[primer_name], fasta_output_path, 'fasta-2line')
             else:
                 SeqIO.write(primer_data[primer_name], fasta_output_path, 'fasta')
+    #No concatenation of FASTA sequences
     else:  
         for data in ab1_data: 
             fasta_output_path = output_path.joinpath(f'{data.id}_trimmed.fasta')
@@ -39,7 +50,7 @@ def output_fastas(ab1_data: list, output_path: Path, con_flag: bool, single_flag
 def parse_args(): 
     parser = ArgumentParser(
         description='Process ab1 files and get Mott algorithm-trimmed sequences',
-        epilog='V1.0.0'
+        epilog='V1.1.0'
         )
     parser.add_argument(
         'ab1_path', 
