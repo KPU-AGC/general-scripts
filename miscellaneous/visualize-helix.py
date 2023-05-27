@@ -4,7 +4,7 @@ __description__ =\
 Purpose: A needlessly-graphical visualizer for GenBank files.
 """
 __author__ = "Erick Samera"
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __comments__ = "stable enough"
 # --------------------------------------------------
 from argparse import (
@@ -33,8 +33,13 @@ def get_args() -> Namespace:
         metavar='<INT>',
         type=float,
         default=100,
-        help='ms scrollspeed')
-
+        help='ms scrollspeed (DEFAULT=100)')
+    parser.add_argument('-c', '--color-complements',
+        action='store_true',
+        help='color complemented nucleotides (DEFAULT=FALSE)')
+    parser.add_argument('-C', '--color-nuc',
+        action='store_false',
+        help='color primary sequence nucleotides (DEFAULT=TRUE)')
 
     # --------------------------------------------------
     args = parser.parse_args()
@@ -61,7 +66,21 @@ NUCLEOTIDES = {
 }
 
 # --------------------------------------------------
-def _get_structure(n:str, i, _color_nuc=True, _color_rev_comp=False) -> str:
+def _get_structure(n :str, i: int, _color_nuc=True, _color_rev_comp=False) -> str:
+    """
+    Function figures out what part of the helix should be printed per nucleotide.
+
+    Parameters:
+        n (str)
+            nucleotide
+        i (int)
+            integer position of nucleotide in sequence
+        _color_nuc (bool)
+
+    Return
+        (str) 
+            representation of nucleotide within the double-helix
+    """
 
     r = NUCLEOTIDES[n.upper()].get('reverse_complement')
     
@@ -98,45 +117,52 @@ def main() -> None:
     args = get_args()
 
     _TERMINAL_SIZE = 50
-    
-    input_seq = SeqIO.read(args.input, 'genbank')
+
+    input_seqs = [seq for seq in SeqIO.parse(args.input, 'genbank')]
+    for input_seq in input_seqs:  
+        
+        # generate initial structure
+        lines_to_print = []
+        for i, nucleotide in enumerate(input_seq.seq):
+            lines_to_print.append({'visual_line': _get_structure(nucleotide, i, _color_nuc=args.color_nuc, _color_rev_comp=args.color_complements)})
+        
+        # generate color key for each annotation type in the sequence:
+        feature_types = sorted(set([feature.type for feature in input_seq.features]))
+        ANNOTATION_COLORS = {key: value for key, value in zip(feature_types, ['BLACK', 'BLUE', 'PURPLE', 'RED', 'GREEN']*len(feature_types))}
+        
+        DIRECTIONALITY = {
+            1:  '↓',
+            -1: '↑',
+            0:  '|',
+        }
+
+        # for each line to be printed, add a list of visible annotations, if there are any 
+        for feature in input_seq.features:
+            if feature.type not in ('CDS', 'gene'): continue
+            for i, nuc in enumerate(input_seq.seq[int(feature.location.start):int(feature.location.end)]):
+                lines_to_print[int(feature.location.start)+i]['visual_line'] += f"{TERMINAL_COLORS[ANNOTATION_COLORS[feature.type]]} {DIRECTIONALITY[feature.strand]} {TERMINAL_COLORS['END']}"
+                if 'annotations_visible' not in lines_to_print[int(feature.location.start)+i]: lines_to_print[int(feature.location.start)+i]['annotations_visible'] = []
+                lines_to_print[int(feature.location.start)+i]['annotations_visible'].append(feature.qualifiers)
 
 
-    # generate initial structure
-    lines_to_print = []
-    for i, nucleotide in enumerate(input_seq.seq):
-        lines_to_print.append({'visual_line': _get_structure(nucleotide, i)})
-    
-    # generate add annotations:
-
-    feature_types = sorted(set([feature.type for feature in input_seq.features]))
-    ANNOTATION_COLORS = {key: value for key, value in zip(feature_types, ['BLACK', 'BLUE', 'PURPLE', 'RED', 'GREEN']*len(feature_types))}
-    DIRECTIONALITY = {
-         1: '↓',
-        -1: '↑',
-         0: '|',
-    }
-
-    for feature in input_seq.features:
-        if feature.type not in ('CDS', 'gene'): continue
-        for i, nuc in enumerate(input_seq.seq[int(feature.location.start):int(feature.location.end)]):
-            lines_to_print[int(feature.location.start)+i]['visual_line'] += f"{TERMINAL_COLORS[ANNOTATION_COLORS[feature.type]]} {DIRECTIONALITY[feature.strand]} {TERMINAL_COLORS['END']}"
-            if 'annotations_visible' not in lines_to_print[int(feature.location.start)+i]: lines_to_print[int(feature.location.start)+i]['annotations_visible'] = []
-            lines_to_print[int(feature.location.start)+i]['annotations_visible'].append(feature.qualifiers)
-
-
-    subprocess.run('clear')
-    for i_line, line in enumerate(lines_to_print):
-        screen_lines = []
-        if i_line <= _TERMINAL_SIZE:
-            screen_lines = '\n'.join([line['visual_line'] for line in lines_to_print[0:i_line] + [{'visual_line': ''}]*(_TERMINAL_SIZE-i_line)])
-        elif i_line+_TERMINAL_SIZE >= len(lines_to_print):
-            screen_lines = '\n'.join([line['visual_line'] for line in lines_to_print[i_line-_TERMINAL_SIZE:len(lines_to_print)] + [{'visual_line': ''}]*(_TERMINAL_SIZE-i_line)])
-        else: 
-            lines_instance = lines_to_print[i_line:i_line+_TERMINAL_SIZE]
-            screen_lines = '\n'.join([line['visual_line'] for line in lines_instance])
-        print(screen_lines)
-        time.sleep(args.scroll_speed/1000)
+        subprocess.run('clear')
+        for i_line, line in enumerate(lines_to_print):
+            screen_lines = []
+            
+            # print a certain number of lines per run of printing
+            # makes it so that each refresh prints _TERMINAL_SIZE number of lines from the entire subset of lines
+            
+            # probably inefficient -- this was intended for use with constant display of annotations
+            # but that feature is likely now depreciated
+            if i_line <= _TERMINAL_SIZE:
+                screen_lines = '\n'.join([line['visual_line'] for line in lines_to_print[0:i_line] + [{'visual_line': ''}]*(_TERMINAL_SIZE-i_line)])
+            elif i_line+_TERMINAL_SIZE >= len(lines_to_print):
+                screen_lines = '\n'.join([line['visual_line'] for line in lines_to_print[i_line-_TERMINAL_SIZE:len(lines_to_print)] + [{'visual_line': ''}]*(_TERMINAL_SIZE-i_line)])
+            else: 
+                lines_instance = lines_to_print[i_line:i_line+_TERMINAL_SIZE]
+                screen_lines = '\n'.join([line['visual_line'] for line in lines_instance])
+            print(screen_lines)
+            time.sleep(args.scroll_speed/1000)
 # --------------------------------------------------
 if __name__ == '__main__':
     main()
