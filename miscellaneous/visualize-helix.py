@@ -4,7 +4,7 @@ __description__ =\
 Purpose: A needlessly-graphical visualizer for GenBank files.
 """
 __author__ = "Erick Samera"
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __comments__ = "stable enough"
 # --------------------------------------------------
 from argparse import (
@@ -14,7 +14,6 @@ from argparse import (
 from pathlib import Path
 # --------------------------------------------------
 import time
-import random
 import subprocess
 from Bio import SeqIO
 # --------------------------------------------------
@@ -46,7 +45,7 @@ def get_args() -> Namespace:
 
     return args
 # --------------------------------------------------
-TERMINAL_COLORS = {
+TERMINAL_COLORS: dict = {
     'BLACK': '\33[40m',
     'BLUE': '\33[44m', 
     'PURPLE': '\33[45m',
@@ -57,7 +56,7 @@ TERMINAL_COLORS = {
     'END': '\033[0m',
 }
 
-NUCLEOTIDES = {
+NUCLEOTIDES: dict = {
     'A': {'reverse_complement': 'T', 'color': TERMINAL_COLORS['GREEN']+'A'+TERMINAL_COLORS['END']},
     'T': {'reverse_complement': 'A', 'color': TERMINAL_COLORS['RED']+'T'+TERMINAL_COLORS['END']},
     'C': {'reverse_complement': 'G', 'color': TERMINAL_COLORS['BLUE']+'C'+TERMINAL_COLORS['END']},
@@ -82,9 +81,9 @@ def _get_structure(n :str, i: int, _color_nuc=True, _color_rev_comp=False) -> st
             representation of nucleotide within the double-helix
     """
 
-    r = NUCLEOTIDES[n.upper()].get('reverse_complement')
+    r: str = NUCLEOTIDES[n.upper()].get('reverse_complement')
     
-    _nuc_struc = {
+    _nuc_struc: dict = {
         0:  f"       {n}{r}   ",
         1:  f"     {n}--{r}   ",
         2:  f"  {n}====---{r} ",
@@ -103,51 +102,52 @@ def _get_structure(n :str, i: int, _color_nuc=True, _color_rev_comp=False) -> st
         15: f"      {r}{n}    ",
     }
 
-    str = _nuc_struc.get(i % 16)\
+    nuc_str: str = _nuc_struc.get(i % 16)\
         .replace('-', f"{TERMINAL_COLORS['GREY']}-{TERMINAL_COLORS['END']}")\
         .replace('=', f"{TERMINAL_COLORS['GREY']}={TERMINAL_COLORS['END']}")\
         .replace(n, NUCLEOTIDES[n.upper()].get('color') if _color_nuc else n)\
         .replace(r, NUCLEOTIDES[r.upper()].get('color') if _color_rev_comp else f"{TERMINAL_COLORS['GREY']}{r}{TERMINAL_COLORS['END']}")
 
-    return str
+    return nuc_str
 # --------------------------------------------------
 def main() -> None:
     """
     """
     args = get_args()
 
-    _TERMINAL_SIZE = 50
+    _TERMINAL_SIZE: int = 50
 
-    input_seqs = [seq for seq in SeqIO.parse(args.input, 'genbank')]
+    input_seqs: list = [seq for seq in SeqIO.parse(args.input, 'genbank')] + [seq for seq in SeqIO.parse(args.input, 'fasta')]
     for input_seq in input_seqs:  
         
         # generate initial structure
-        lines_to_print = []
+        lines_to_print: list = []
         for i, nucleotide in enumerate(input_seq.seq):
             lines_to_print.append({'visual_line': _get_structure(nucleotide, i, _color_nuc=args.color_nuc, _color_rev_comp=args.color_complements)})
         
-        # generate color key for each annotation type in the sequence:
-        feature_types = sorted(set([feature.type for feature in input_seq.features]))
-        ANNOTATION_COLORS = {key: value for key, value in zip(feature_types, ['BLACK', 'BLUE', 'PURPLE', 'RED', 'GREEN']*len(feature_types))}
-        
-        DIRECTIONALITY = {
-            1:  '↓',
-            -1: '↑',
-            0:  '|',
-        }
+        # if no features, e.g., FASTA-file, don't bother with annotations
+        if input_seq.features:
+            # generate color key for each annotation type in the sequence:
+            feature_types: list = sorted(set([feature.type for feature in input_seq.features]))
+            ANNOTATION_COLORS: dict = {key: value for key, value in zip(feature_types, ['BLACK', 'BLUE', 'PURPLE', 'RED', 'GREEN']*len(feature_types))}
+            
+            DIRECTIONALITY: dict = {
+                1:  '↓',
+                -1: '↑',
+                0:  '|',
+            }
 
-        # for each line to be printed, add a list of visible annotations, if there are any 
-        for feature in input_seq.features:
-            if feature.type not in ('CDS', 'gene'): continue
-            for i, nuc in enumerate(input_seq.seq[int(feature.location.start):int(feature.location.end)]):
-                lines_to_print[int(feature.location.start)+i]['visual_line'] += f"{TERMINAL_COLORS[ANNOTATION_COLORS[feature.type]]} {DIRECTIONALITY[feature.strand]} {TERMINAL_COLORS['END']}"
-                if 'annotations_visible' not in lines_to_print[int(feature.location.start)+i]: lines_to_print[int(feature.location.start)+i]['annotations_visible'] = []
-                lines_to_print[int(feature.location.start)+i]['annotations_visible'].append(feature.qualifiers)
-
+            # for each line to be printed, add a list of visible annotations, if there are any 
+            for feature in input_seq.features:
+                if feature.type not in ('CDS', 'gene'): continue
+                for i, nuc in enumerate(input_seq.seq[int(feature.location.start):int(feature.location.end)]):
+                    lines_to_print[int(feature.location.start)+i]['visual_line'] += f"{TERMINAL_COLORS[ANNOTATION_COLORS[feature.type]]} {DIRECTIONALITY[feature.strand]} {TERMINAL_COLORS['END']}"
+                    if 'annotations_visible' not in lines_to_print[int(feature.location.start)+i]: lines_to_print[int(feature.location.start)+i]['annotations_visible'] = []
+                    lines_to_print[int(feature.location.start)+i]['annotations_visible'].append(feature.qualifiers)
 
         subprocess.run('clear')
         for i_line, line in enumerate(lines_to_print):
-            screen_lines = []
+            screen_lines: list = []
             
             # print a certain number of lines per run of printing
             # makes it so that each refresh prints _TERMINAL_SIZE number of lines from the entire subset of lines
@@ -155,12 +155,12 @@ def main() -> None:
             # probably inefficient -- this was intended for use with constant display of annotations
             # but that feature is likely now depreciated
             if i_line <= _TERMINAL_SIZE:
-                screen_lines = '\n'.join([line['visual_line'] for line in lines_to_print[0:i_line] + [{'visual_line': ''}]*(_TERMINAL_SIZE-i_line)])
+                screen_lines: str = '\n'.join([line['visual_line'] for line in lines_to_print[0:i_line] + [{'visual_line': ''}]*(_TERMINAL_SIZE-i_line)])
             elif i_line+_TERMINAL_SIZE >= len(lines_to_print):
-                screen_lines = '\n'.join([line['visual_line'] for line in lines_to_print[i_line-_TERMINAL_SIZE:len(lines_to_print)] + [{'visual_line': ''}]*(_TERMINAL_SIZE-i_line)])
+                screen_lines: str = '\n'.join([line['visual_line'] for line in lines_to_print[i_line-_TERMINAL_SIZE:len(lines_to_print)] + [{'visual_line': ''}]*(_TERMINAL_SIZE-i_line)])
             else: 
-                lines_instance = lines_to_print[i_line:i_line+_TERMINAL_SIZE]
-                screen_lines = '\n'.join([line['visual_line'] for line in lines_instance])
+                lines_instance: list = lines_to_print[i_line:i_line+_TERMINAL_SIZE]
+                screen_lines: str = '\n'.join([line['visual_line'] for line in lines_instance])
             print(screen_lines)
             time.sleep(args.scroll_speed/1000)
 # --------------------------------------------------
