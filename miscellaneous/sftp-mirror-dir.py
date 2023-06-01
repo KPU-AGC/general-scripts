@@ -53,15 +53,22 @@ def get_args() -> Namespace:
         type=str,
         required=False,
         help="password")
+    parser.add_argument('--force', '-f',
+        action='store_true',
+        help="if the local root doesn't exist, make it. This is to prevent pathing errors.")
 
     args = parser.parse_args()
 
     # parser errors and processing
     # --------------------------------------------------
+    # ensure absolute paths
     if not all([
         args.local_root_dir.is_absolute(),
         args.remote_root_dir.is_absolute()
         ]): parser.error('Use absolute paths!')
+    # check to see if the local path exists, prevent pathing errors
+    if not args.force:
+        if not args.local_root_dir.exists() or not args.local_root_dir.is_dir(): parser.error('Use an existing local root or pass -f/--force !')
 
     return args
 # --------------------------------------------------
