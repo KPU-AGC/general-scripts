@@ -49,7 +49,7 @@ def main():
     args = get_args()
 
     for genbank_file in args.input: 
-        try: SeqIO.write(SeqIO.read(genbank_file, 'gb'), f"{genbank_file.stem}.fasta", 'fasta')
+        try: SeqIO.write(SeqIO.read(genbank_file, 'gb'), args.output.joinpath(f"{genbank_file.stem}.fasta"), 'fasta')
         except ValueError: print(f"ERROR: {genbank_file.name} may not be a GenBank (.gb) file.")
 
 # --------------------------------------------------
