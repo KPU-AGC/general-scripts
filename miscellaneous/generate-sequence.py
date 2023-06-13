@@ -5,7 +5,7 @@ Purpose: Generate a random sequence with a given size (--size) and gc content (-
 Use '>' to pipe the output of this script into a fasta file. 
 """
 __author__ = "Erick Samera"
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __comments__ = "stable"
 # --------------------------------------------------
 from argparse import (
@@ -44,38 +44,34 @@ def get_args() -> Namespace:
         type=int,
         default=None,
         help='character widths for sequence output (default=None)')
-    group_sequence_length = parser.add_argument_group('REQUIRED')
-    length_synonyms = group_sequence_length.add_mutually_exclusive_group(required=True)
-    length_synonyms.add_argument(
-        '-l',
-        '--length',
+    parser.add_argument(
+        '-l', '--length',
+        '-s', '--size',
         dest='length',
         metavar='bp',
         type=str,
-        help="size of sequence (bp), SI prefixes ['k', 'M', 'G'] allowed, \nexamples: 100 = 100, 1G = 1000000000, 1.2Mbp = 1200000")
-    length_synonyms.add_argument(
-        '-s',
-        '--size',
-        dest='size',
-        metavar='bp',
-        type=str,
-        help="synonym of --length")
+        help="length of sequence (bp), SI prefixes ['k', 'M', 'G'] allowed, \nexamples: 100 = 100, 1G = 1000000000, 1.2Mbp = 1200000")
+    parser.add_argument(
+        '--benchmark',
+        dest='benchmark',
+        action='store_true',
+        help="skip print-out, just benchmark computation time"
+    )
 
     args = parser.parse_args()
     # parser errors and processing
     # --------------------------------------------------
-    if not args.size: args.size = args.length
-    if not args.fasta_header: args.fasta_header = f"{args.size} bp sequence with {args.gc_content} GC content"
+    if not args.fasta_header: args.fasta_header = f"{args.length} bp sequence with {args.gc_content} GC content"
     if args.gc_content > 1: args.gc_content = args.gc_content/100
     if args.gc_content > 100: parser.error("GC content should be [0-100]")
-    if args.size.endswith('bp'): args.size = args.size.replace('bp', '')
-    if all([False for char in args.size if char not in "1234567890."]) and args.size.count('.') <= 1: args.size = float(args.size)
+    if args.length.endswith('bp'): args.length = args.length.replace('bp', '')
+    if all([False for char in args.length if char not in "1234567890."]) and args.length.count('.') <= 1: args.length = float(args.length)
     else:
         multiplier = {'k': 1000, 'M': 1000000, 'G': 1e+9}
-        prefix = args.size[-1]
-        if prefix not in multiplier: parser.error(f"couldn't process {args.size}, check if {prefix} is an SI prefix")
-        base = float(args.size[:-1])
-        args.size = int(base*multiplier[prefix])
+        prefix = args.length[-1]
+        if prefix not in multiplier: parser.error(f"couldn't process {args.length}, check if {prefix} is an SI prefix")
+        base = float(args.length[:-1])
+        args.length = int(base*multiplier[prefix])
 
     return args
 # --------------------------------------------------
@@ -98,10 +94,10 @@ def _generate_sequence(_size: int, _gc_content: float) -> str:
 def main() -> None:
     """ Insert docstring here """
     args = get_args()
-    sequence: str = _generate_sequence(args.size, args.gc_content)
+    sequence: str = _generate_sequence(args.length, args.gc_content)
     # if width is specified, add newlines whenever the sequence hits the width
     if args.width: sequence: str = ''.join([char if not (i_char+1) % args.width == 0 else char+"\n" for i_char, char in enumerate(sequence)])
-    print(f">{args.fasta_header}\n{sequence}")
+    if not args.benchmark: print(f">{args.fasta_header}\n{sequence}")
     return None
 # --------------------------------------------------
 if __name__ == '__main__':
