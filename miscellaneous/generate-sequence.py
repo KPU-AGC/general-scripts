@@ -50,6 +50,7 @@ def get_args() -> Namespace:
         dest='length',
         metavar='bp',
         type=str,
+        default='200',
         help="length of sequence (bp), SI prefixes ['k', 'M', 'G'] allowed, \nexamples: 100 = 100, 1G = 1000000000, 1.2Mbp = 1200000")
     parser.add_argument(
         '--benchmark',
