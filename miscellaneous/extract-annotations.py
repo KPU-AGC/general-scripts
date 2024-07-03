@@ -4,8 +4,8 @@ __description__ =\
 Purpose: Given an input FASTA and region, add annotations from gff and vcf files to produce a GenBank file.
 """
 __author__ = "Erick Samera"
-__version__ = "1.0.0"
-__comments__ = "stable enough"
+__version__ = "2.0.0"
+__comments__ = "easier to just wrap bcftools"
 # --------------------------------------------------
 from argparse import (
     Namespace,
@@ -14,6 +14,7 @@ from argparse import (
 from pathlib import Path
 # --------------------------------------------------
 import re
+import subprocess
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -43,12 +44,21 @@ def get_args() -> Namespace:
         action='append',
         help="input VCF file (multiple accepted)")
 
+    parser.add_argument('--desc',
+        type=str,
+        metavar="<STR>",
+        default="{chromosome}:{start}-{end}",
+        help="edit sequence description [default: {chromosome}:{start}-{end}]\n{chromosome}/{start}/{end} are evaluated as input coords.")
+
     args = parser.parse_args()
 
     # parser errors and processing
     # --------------------------------------------------
     # ensure that coords match format
-    if not re.match(r".*\:\d+(\-|\.\.)\d+", args.position): parser.error("ERROR: Incorrect region format, must be (chr:start-end/chr:start..end)")
+    if not re.match(r".*:\d+(-|\.\.)\d+", args.position):
+        parser.error("ERROR: Incorrect region format, must be (chr:start-end/chr:start..end)")
+    if not _bcftools_installed(): 
+        parser.error('ERROR: bcftools not installed! Please install it to continue.')
 
     return args
 # --------------------------------------------------
@@ -122,44 +132,69 @@ def _parse_vcf(_input_path: Path, _chromosome: str, _start: int, _end: int) -> l
 
     list_of_annotations: list = []
 
-    with open(_input_path) as input_vcf_file:
-        for line in input_vcf_file.readlines():
-            if line.startswith('#'): continue
-            
-            # parse vcf file into respective relevant information
-            line_chr, line_pos, rsid, *_ = line.strip().split('\t')
-            line_pos: int = int(line_pos)
+    # try random access first
+    command = f'bcftools view --no-header -r {_chromosome}:{_start}-{_end} {_input_path}'
+    bcftools_result = subprocess.run(command, shell=True, capture_output=True)
 
-            # skip if not in target region
-            if not line_chr == _chromosome: continue
-            if not _start < line_pos < _end: continue
-            relative_pos: int = line_pos - _start
+    # and if not, just do by stream
+    if bcftools_result.stderr.decode().strip() == f"Failed to read from {_input_path}: not compressed with bgzip":
+        command = f'bcftools view --no-header -t {_chromosome}:{_start}-{_end} {_input_path}'
+        bcftools_result = subprocess.run(command, shell=True, capture_output=True)
 
-            SeqFeature_to_append = SeqFeature(
-                        FeatureLocation(relative_pos, relative_pos+1, strand=+1),
-                        type="SNP")
-            if rsid.replace('.', ''): SeqFeature_to_append.qualifiers['ID'] = rsid
-            list_of_annotations.append(SeqFeature_to_append)
+    for line in bcftools_result.stdout.decode().splitlines():
+        if line.startswith('#'): continue
+        
+        # parse vcf file into respective relevant information
+        line_chr, line_pos, rsid, *_ = line.strip().split('\t')
+        line_pos: int = int(line_pos)
+
+        # skip if not in target region
+        if not line_chr == _chromosome: continue
+        if not _start < line_pos < _end: continue
+        relative_pos: int = line_pos - _start
+
+        SeqFeature_to_append = SeqFeature(
+                    FeatureLocation(relative_pos, relative_pos+1, strand=+1),
+                    type="polymorphism")
+        if rsid.replace('.', ''): SeqFeature_to_append.qualifiers['ID'] = rsid
+        list_of_annotations.append(SeqFeature_to_append)
 
     return list_of_annotations
+def _format_sequence_description(seq_desc_template: str, chromosome: str, start: int, end: int) -> str:
+    """
+    Formats the sequence description template with the given chromosome, start, and end.
+    """
+    return seq_desc_template.format(chromosome=chromosome, start=start, end=end)
+def _bcftools_installed() -> bool:
+    """
+    Check if bcftools is installed.
+    """
+    command = 'bcftools'
+    result = subprocess.run(command, shell=True, capture_output=True)
+    if 'bcftools: not found' in result.stderr.decode().strip():
+        return False
+    return True
 # --------------------------------------------------
 def main() -> None:
     """ Main stuff. """
-    
+
     args = get_args()
-    chromosome, start, end = re.split(':|-|\.\.', args.position)
+    chromosome, start, end = re.split('[:-]|\\.\\.', args.position)
     start: int = int(start); end: int = int(end)
 
     record_dict = SeqIO.index(str(args.input_fasta), "fasta")
+
+    formatted_seq_desc: str = _format_sequence_description(args.seq_desc, chromosome, start, end)
+
     record_to_print = SeqRecord(
         Seq(record_dict[chromosome].seq[start-1:end]).upper(),
         id=chromosome,
         name="",
-        description=f"{chromosome}:{start}-{end}",
+        description=formatted_seq_desc,
         annotations={"molecule_type": "DNA"}
     )
 
-    annotations = []
+    annotations: list = []
     if args.gff: [annotations.extend(_parse_gff(annotation, chromosome, start, end)) for annotation in args.gff]
     if args.vcf: [annotations.extend(_parse_vcf(annotation, chromosome, start, end)) for annotation in args.vcf]
     for annotation in annotations: record_to_print.features.append(annotation)
