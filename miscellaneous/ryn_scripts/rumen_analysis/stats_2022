@@ -1,0 +1,355 @@
+# ----
+
+#                    ▓▓░  ▓▓▓  ░▓▓▓
+#   -. .-.   .-. .- ▓░ ▓░▓░   ░▓  ░▓ -. .-.   .-. .-
+#   ||\|||\ /|||\|| ▓▓▓▓░▓░░▓▓░▓     ||\|||\ /|||\||
+#   |/ \|||\|||/ \| ▓░ ▓░▓░ ░▓░▓  ░▓ |/ \|||\|||/ \|
+#   ¯   `-¯ `-'   ` ▓░ ▓░ ▓▓▓  ░▓▓▓  ¯   `-¯ `-'   `
+#  T H E  A P P L I E D  G E N O M I C S  C E N T R E
+#           --- Coding a better harvest ---
+#Author: Tamryn Kennedy
+#Date: March 5, 2024
+
+#R script to perform statistical analysis on 2022 rumen samples
+
+
+# Load packages ----
+library(patchwork)
+library(reshape2)
+library(sessioninfo)
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+
+
+# Loading data----
+qpcr_results <- read_csv("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2022\\2022_methanogens.csv") %>%
+  drop_na(day) %>%
+  filter(!number %in% c("Mean_g", "Mean_s"))
+qpcr_resultsjustmn <- read_csv("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2022\\2022_methanogens.csv") %>%
+  drop_na(day) %>%
+  filter(number %in% c("Mean_g", "Mean_s"))
+  
+
+# qpcr_results$date <- as_date(ymd(qpcr_results$date)) ----
+#qpcr_results$day <- as_date(ymd(qpcr_results$day), tz=UTC)
+
+
+# Specify date order for each df ----
+Date_Order <- c("1/18/2022", "1/25/2022", "2/1/2022", "2/8/2022", "3/1/2022", "3/15/2022")
+#Date_Order <- c("Date_1,Date_2,Date_3,Date_4,Date_5,Date_6")
+Cow_Order <- c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12")
+uni <- unique(qpcr_results$date)
+Date_Order <- sort(uni)
+
+start_date <- min(qpcr_results$day)-days(1)
+end_date <- max(qpcr_results$day)+days(1)
+
+# Subset data ----
+##bact_data
+bact_data <- qpcr_results %>%
+  select(day,
+         number,
+         diet,
+         nc_bacteriales) %>%
+  drop_na()
+
+
+##micro_data
+micro_data <- qpcr_results %>%
+  select(day,
+         number,
+         diet,
+         nc_microbiales) %>%
+  drop_na()
+
+
+#1. shapiro's (normality) [null hypothesis = data is normally distributed] --> default alpha = 0.05 + levene's (variance) [null hypothesis = data has equal variance] --> default alpha = 0.05
+
+# Statistics for boxplot ----
+# # BACTERIALES ----
+# # make a linear model of the data
+linear_model_bact <- lm(nc_bacteriales ~ diet, data = bact_data)
+# Checking distribution for normality
+bact_qq_plot <- ggqqplot(residuals(linear_model_bact)) +
+  labs(title = "Residuals Plot\n for methanobacteriales number of counts (nc_bacteriales)") +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  face = "bold",
+                                  size = 14,
+                                  colour = "grey20"),
+        axis.title.x = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.x = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"),
+        axis.title.y = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.y = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"))
+bact_qq_plot
+
+bact_dens_plot <- ggdensity(residuals(linear_model_bact),
+                           fill = "#3B6C67",
+                           alpha = 0.6) +
+  labs(title = "Density Plot\nfor methanobacteriales number of counts (nc_bacteriales)") +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  face = "bold",
+                                  size = 14,
+                                  colour = "grey20"),
+        axis.title.x = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.x = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"),
+        axis.title.y = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.y = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"))
+bact_dens_plot
+
+shapiro_test(residuals(linear_model_bact)) %>%
+  print()
+
+      # # A tibble: 1 × 3
+      #   variable                     statistic p.value
+      #   <chr>                            <dbl>   <dbl>
+      # 1 residuals(linear_model_bact)     0.947 0.00438
+
+# From plots and Shapiro-Wilk test (*p* = 0.00438) everything is indicated as not normally distributed
+# Now checking to see if there's equal variance
+# Use Levene's Test, standardly used.
+bact_variance <- plot(linear_model_bact, 1) +
+  title(main = "Variance in methanobacteriales number of counts (nc_bacteriales) for grain vs seaweed diets")
+bact_levene <- bact_data %>%
+  mutate(diet = factor(diet)) %>%
+  levene_test(nc_bacteriales ~ diet) %>%
+  print()
+
+      # # A tibble: 1 × 4
+      #     df1   df2 statistic     p
+      #   <int> <int>     <dbl> <dbl>
+      # 1     1    70      2.02 0.160
+
+# The null hypothesis for Levene's Test is that variance is equal.
+# *p* = 0.160 so the null is not rejected and variance is taken as equal.
+# SO! Conclusion here, populations are normally distributed but have equal variance.
+# Use Welch's One-Way ANOVA
+
+
+# MICROBIALES ----
+# make a linear model of the data
+linear_model_micro <- lm(nc_microbiales ~ diet, data = micro_data)
+#Checking distribution for normality
+micro_qq_plot <- ggqqplot(residuals(linear_model_micro)) +
+  labs(title = "Residuals Plot\n for methanomicrobiales number of counts (nc_microbiales)") +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  face = "bold",
+                                  size = 14,
+                                  colour = "grey20"),
+        axis.title.x = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.x = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"),
+        axis.title.y = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.y = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"))
+micro_qq_plot
+
+micro_dens_plot <- ggdensity(residuals(linear_model_micro),
+                           fill = "#3B6C67",
+                           alpha = 0.6) +
+  labs(title = "Density Plot\nfor methanomicrobiales number of counts (nc_microbiales)") +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  face = "bold",
+                                  size = 14,
+                                  colour = "grey20"),
+        axis.title.x = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.x = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"),
+        axis.title.y = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.y = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"))
+micro_dens_plot
+
+shapiro_test(residuals(linear_model_micro)) %>%
+  print()
+# From plots and Shapiro-Wilk test (*p* = 0.000295) everything is indicated as not normally distributed
+      # # A tibble: 1 × 3
+      #   variable                      statistic  p.value
+      #   <chr>                             <dbl>    <dbl>
+      # 1 residuals(linear_model_micro)     0.923 0.000295
+
+# Now checking to see if there's equal variance
+# Use Levene's Test, standardly used.
+micro_variance <- plot(linear_model_micro, 1) +
+  title(main = "Variance in methanomicrobiales number of counts (nc_microbiales) for grain vs seaweed diets")
+micro_levene <- micro_data %>%
+  mutate(diet = factor(diet)) %>%
+  levene_test(as.numeric(nc_microbiales) ~ diet) %>%
+  print()
+# The null hypothesis for Levene's Test is that variance is equal.
+# *p* = 0.217 so the null is not rejected and variance is taken as equal.
+      # # A tibble: 1 × 4
+      #     df1   df2 statistic     p
+      #   <int> <int>     <dbl> <dbl>
+      # 1     1    70      1.55 0.217
+
+# SO! Conclusion here, populations are not normally distributed but have equal variance.
+# Use Welch's One-Way ANOVA
+
+
+
+#2. Multiple comparisons tests(ANOVA, Kruskal-wallis, etc.) (comparing nc_methanogen w/ grain diet to nc_methanogen w/ seaweed diet)
+## BACTERIALES
+# Use Welch's one-way ANOVA
+bactWELCH <- bact_data %>%
+  welch_anova_test(nc_bacteriales ~ diet) %>%
+  print()
+
+      # WELCH'S ONE-WAY ANOVA
+      # A tibble: 1 × 7
+          #   .y.                n statistic   DFn   DFd     p method     
+          # * <chr>          <int>     <dbl> <dbl> <dbl> <dbl> <chr>      
+          # 1 nc_bacteriales    72      1.85     1  61.9 0.179 Welch ANOVA
+
+
+## MICROBIALES
+#Use Welch's One-Way ANOVA
+microWELCH <- micro_data %>%
+  welch_anova_test(nc_microbiales ~ diet) %>%
+  print()
+
+      # WELCH'S ONE-WAY ANOVA
+      # A tibble: 1 × 7
+        #   .y.                n statistic   DFn   DFd     p method     
+        # * <chr>          <int>     <dbl> <dbl> <dbl> <dbl> <chr>      
+        # 1 nc_microbiales    72      0.35     1  70.0 0.554 Welch ANOVA
+
+
+
+#3. U-test and pairwise/more specific tests
+
+# Stats analysis between first and last sampling dates
+# BACTERIALES
+t.test(bact_frst_data$nc_bacteriales, bact_lst_data$nc_bacteriales) %>%
+print()
+
+
+
+
+# MICROBIALES
+wilcox.test(micro_frst_data$nc_microbiales, micro_lst_data$nc_microbiales) %>%
+  print()
+
+
+
+
+#4. Running a correlation test 
+
+#BACTERIALES
+#Normal distribution --> Pearson correlation
+cor(bact_frst_data$nc_bacteriales, bact_lst_data$nc_bacteriales, method = "pearson") %>%
+  print()
+
+      #Result: -0.1678956 --> Total negative linear correlation
+
+#MICROBIALES
+#Not normal distribution --> Spearman's Rank (Rho)
+cor(micro_frst_data$nc_microbiales, micro_lst_data$nc_microbiales, method = "spearman") %>%
+  print()
+
+      #Result: -0.09090909 --> Total negative linear correlation
+
+#5. Plotting Stats Tests
+
+# BACTERIALES BOX PLOT----
+Plotbact <-ggboxplot(qpcr_results, x = "date", y = "nc_bacteriales",
+                     color = "date", palette = c("#EEE685","#EEE685","#ADCE84","#ADCE84","#ADCE84","#ADCE84"),
+                     order = Date_Order,
+                     ylab = "Methanobacteriales\n Number of Copies (nc)", xlab = "Date") +
+           theme(legend.position = "none",
+                 axis.title.x = element_blank())
+
+Plotbact
+
+# MICROBIALES BOX PLOT----
+Plotmicro <-ggboxplot(qpcr_results, x = "date", y = "nc_microbiales",
+                     color = "date", palette = c("#EEE685","#EEE685","#ADCE84","#ADCE84","#ADCE84","#ADCE84"),
+                     order = Date_Order,
+                     ylab = "Methanomicrobiales\n Number of Copies (nc)", xlab = "Date") +
+           theme(legend.position = "none",
+                 axis.title.x = element_blank())
+
+Plotmicro
+
+# geom_segment(short vert bar) +
+# geom_segment(long horiz bar) +
+# geom_segment(short vert bar) +
+# geom_text(x,y,paste0("p = ", microwelch$p))
+
+#5. Save graphs
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\bact_qq_plot.png",
+       plot = bact_qq_plot,
+       device = "png",
+       width = 12, 
+       height = 10,
+       dpi = 300,
+       )
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\bact_dens_plot.png",
+       plot = bact_dens_plot,
+       device = "png",
+       width = 12, 
+       height = 10,
+       dpi = 300,
+       )
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\Plotbact1.2.png",
+       plot = Plotbact,
+       device = "png",
+       width = 10, 
+       height = 8,
+       dpi = 300,
+       )
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\micro_qq_plot.png",
+       plot = micro_qq_plot,
+       device = "png",
+       width = 12, 
+       height = 10,
+       dpi = 300,
+       )
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\micro_dens_plot.png",
+       plot = micro_dens_plot,
+       device = "png",
+       width = 12, 
+       height = 10,
+       dpi = 300,
+       )
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\Plotmicro1.2.png",
+       plot = Plotmicro,
+       device = "png",
+       width = 10, 
+       height = 8,
+       dpi = 300,
+       )       
