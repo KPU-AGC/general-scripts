@@ -10,7 +10,7 @@
 #Author: Tamryn Kennedy
 #Date: June 18, 2024
 
-#R script to visualize the ratios Methanobacteriales/Total class and Methanomicrobiales/Total class qPCR data
+#R script to visualize the ratios Methanobacteriales/Total class and Methanomicrobiales/Total class qPCR data from 2023 samples
 
 
 # Installing packages ----
