@@ -1,0 +1,17 @@
+#Author: Tamryn Kennedy
+#Date: July 8, 2024
+
+#!/bin/bash
+
+#1 Create a blast db for every genome in M. bovis (iteratively --> loop)
+        #Command to make database (makeblastdb -in GCF_001930225.1_ASM193022v1_genomic.fna -dbtype 'nucl')
+        #Activate conda environment (probedesign_tk)
+
+PARENT_DIR="/home/agc/Documents/ryn/westgen/genomes_2"
+M_BOVIS_GENOMES=$(realpath ${PARENT_DIR}/hw/accessions/*.fna)
+Q_fasta=$(realpath ${PARENT_DIR}/query.fasta)
+
+for M_BOVIS_GENOME in ${M_BOVIS_GENOMES}; do
+        M_BASE=$(basename ${M_BOVIS_GENOME} .fna);
+        #makeblastdb -in ${M_BOVIS_GENOME} -dbtype 'nucl';
+        blastn -query ${Q_fasta} -db ${M_BOVIS_GENOME} -outfmt "6 sacc sseq" | sed 's/^/>/' | tr "\t" "\n" >~/Documents>done
