@@ -10,6 +10,7 @@
 #Author: Tamryn Kennedy
 #Date: February 22, 2024
 
+#R script to perform statistical analysis on 2023 sample qPCR data
 
 # Load packages ----
 library(patchwork)
