@@ -1,0 +1,933 @@
+# ----
+
+#                    ▓▓░  ▓▓▓  ░▓▓▓
+#   -. .-.   .-. .- ▓░ ▓░▓░   ░▓  ░▓ -. .-.   .-. .-
+#   ||\|||\ /|||\|| ▓▓▓▓░▓░░▓▓░▓     ||\|||\ /|||\||
+#   |/ \|||\|||/ \| ▓░ ▓░▓░ ░▓░▓  ░▓ |/ \|||\|||/ \|
+#   ¯   `-¯ `-'   ` ▓░ ▓░ ▓▓▓  ░▓▓▓  ¯   `-¯ `-'   `
+#  T H E  A P P L I E D  G E N O M I C S  C E N T R E
+#           --- Coding a better harvest ---
+#Author: Tamryn Kennedy
+#Date: February 22, 2024
+
+
+# Load packages ----
+library(patchwork)
+library(reshape2)
+library(sessioninfo)
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+
+
+# Loading data----
+qpcr_results <- read_csv("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\Analysis\\2023\\2023_methanogens.csv") %>%
+  drop_na(day) %>%
+  filter(!number == "Mean")
+qpcr_resultsjustmn <- read_csv("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\Analysis\\2023\\2023_methanogens.csv") %>%
+  drop_na(day) %>%
+  filter(number == "Mean")
+  
+
+# qpcr_results$date <- as_date(ymd(qpcr_results$date)) ----
+#qpcr_results$day <- as_date(ymd(qpcr_results$day), tz=UTC)
+
+
+# Specify date order for each df ----
+Date_Order <- c("7/4/2023","7/17/2023","7/24/2023","8/2/2023","8/8/2023","8/14/2023")
+#Date_Order <- c("Date_1,Date_2,Date_3,Date_4,Date_5,Date_6")
+Cow_Order <- c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12")
+uni <- unique(qpcr_results$date)
+Date_Order <- sort(uni)
+
+start_date <- min(qpcr_results$day)-days(1)
+end_date <- max(qpcr_results$day)+days(1)
+
+# Subset data ----
+##bact_data
+  bact_data <- qpcr_results %>%
+    select(day,
+          number,
+          diet,
+          nc_bacteriales) %>%
+    drop_na()
+
+  bact_grain_data <- qpcr_results %>%
+    select(date,
+          number, 
+          diet,
+          nc_bacteriales) %>%
+    drop_na() %>%
+    filter(date %in% c("Date_1", "Date_2"))
+
+  bact_seaweed_data <- qpcr_results %>%
+    select(date,
+          number, 
+          diet,
+          nc_bacteriales) %>%
+    drop_na() %>%
+    filter(date %in% c("Date_3", "Date_4", "Date_5", "Date_6"))
+
+  bact_first_data <- qpcr_results %>%
+    select(date,
+          number, 
+          diet, 
+          nc_bacteriales) %>%
+    drop_na() %>%
+    filter(date %in% c("Date_1"))
+
+  bact_second_data <- qpcr_results %>%
+    select(date,
+          number,
+          diet,
+          nc_bacteriales) %>%
+    drop_na() %>%
+    filter (date %in% c("Date_2"))
+
+  bact_third_data <- qpcr_results %>%
+    select(date,
+          number,
+          diet,
+          nc_bacteriales) %>%
+    drop_na() %>%
+    filter (date %in% c("Date_3"))
+
+  bact_fourth_data <- qpcr_results %>%
+    select(date,
+          number,
+          diet,
+          nc_bacteriales) %>%
+    drop_na() %>%
+    filter (date %in% c("Date_4"))
+
+  bact_fifth_data <- qpcr_results %>%
+    select(date,
+          number,
+          diet,
+          nc_bacteriales) %>%
+    drop_na() %>%
+    filter (date %in% c("Date_5"))
+
+  bact_sixth_data <- qpcr_results %>%
+    select(date,
+          number,
+          diet,
+          nc_bacteriales) %>%
+    drop_na() %>%
+    filter (date %in% c("Date_6"))
+
+    select(date,
+          number,
+          diet,
+          nc_bacteriales) %>%
+    drop_na() %>%
+    filter (date %in% c("Date_6"))
+
+##micro_data
+  micro_data <- qpcr_results %>%
+    select(day,
+          number,
+          diet,
+          nc_microbiales) %>%
+    drop_na()
+
+  micro_grain_data <- qpcr_results %>%
+    select(date,
+          number, 
+          diet,
+          nc_microbiales) %>%
+    drop_na() %>%
+    filter(date %in% c("Date_1", "Date_2"))
+
+  micro_seaweed_data <- qpcr_results %>%
+    select(date,
+          number, 
+          diet,
+          nc_microbiales) %>%
+    drop_na() %>%
+    filter(date %in% c("Date_3", "Date_4", "Date_5", "Date_6"))
+
+
+  micro_first_data <- qpcr_results %>%
+    select(date,
+          number, 
+          diet, 
+          nc_microbiales) %>%
+    drop_na() %>%
+    filter(date %in% c("Date_1"))
+
+  micro_second_data <- qpcr_results %>%
+    select(date,
+          number, 
+          diet, 
+          nc_microbiales) %>%
+    drop_na() %>%
+    filter(date %in% c("Date_2"))
+
+  micro_third_data <- qpcr_results %>%
+    select(date,
+          number, 
+          diet, 
+          nc_microbiales) %>%
+    drop_na() %>%
+    filter(date %in% c("Date_3"))
+
+  micro_fourth_data <- qpcr_results %>%
+    select(date,
+          number, 
+          diet, 
+          nc_microbiales) %>%
+    drop_na() %>%
+    filter(date %in% c("Date_4"))
+
+  micro_fifth_data <- qpcr_results %>%
+    select(date,
+          number, 
+          diet, 
+          nc_microbiales) %>%
+    drop_na() %>%
+    filter(date %in% c("Date_5"))
+
+  micro_sixth_data <- qpcr_results %>%
+    select(date,
+          number,
+          diet,
+          nc_microbiales) %>%
+    drop_na() %>%
+    filter (date %in% c("Date_6"))
+#1. shapiro's (normality) [null hypothesis = data is normally distributed] --> default alpha = 0.05 + levene's (variance) [null hypothesis = data has equal variance] --> default alpha = 0.05
+
+# Statistics for boxplot ----
+# # BACTERIALES ----
+# # make a linear model of the data
+linear_model_bact <- lm(nc_bacteriales ~ diet, data = bact_data)
+# Checking distribution for normality
+bact_qq_plot <- ggqqplot(residuals(linear_model_bact)) +
+  labs(title = "Residuals Plot\n for methanobacteriales number of counts (nc_bacteriales)") +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  face = "bold",
+                                  size = 14,
+                                  colour = "grey20"),
+        axis.title.x = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.x = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"),
+        axis.title.y = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.y = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"))
+bact_qq_plot
+
+bact_dens_plot <- ggdensity(residuals(linear_model_bact),
+                           fill = "#3B6C67",
+                           alpha = 0.6) +
+  labs(title = "Density Plot\nfor methanobacteriales number of counts (nc_bacteriales)") +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  face = "bold",
+                                  size = 14,
+                                  colour = "grey20"),
+        axis.title.x = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.x = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"),
+        axis.title.y = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.y = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"))
+bact_dens_plot
+
+shapiro_test(residuals(linear_model_bact)) %>%
+  print()
+
+      # # A tibble: 1 × 3
+      #   variable                     statistic p.value
+      #   <chr>                            <dbl>   <dbl>
+      # 1 residuals(linear_model_bact)     0.979   0.290
+
+# From plots and Shapiro-Wilk test (*p* = 0.290) everything is indicated as normally distributed
+# Now checking to see if there's equal variance
+# Use Levene's Test, standardly used.
+bact_variance <- plot(linear_model_bact, 1) +
+  title(main = "Variance in methanobacteriales number of counts (nc_bacteriales) for grain vs seaweed diets")
+bact_levene <- bact_data %>%
+  mutate(diet = factor(diet)) %>%
+  levene_test(nc_bacteriales ~ diet) %>%
+  print()
+
+      # # A tibble: 1 × 4
+      #     df1   df2 statistic     p
+      #   <int> <int>     <dbl> <dbl>
+      # 1     1    68      1.64 0.205
+
+# The null hypothesis for Levene's Test is that variance is equal.
+# *p* = 0.205 so the null is not rejected and variance is taken as equal.
+# SO! Conclusion here, populations are normally distributed but have equal variance.
+# Use one-way ANOVA
+
+
+# MICROBIALES ----
+# make a linear model of the data
+linear_model_micro <- lm(nc_microbiales ~ diet, data = micro_data)
+Checking distribution for normality
+micro_qq_plot <- ggqqplot(residuals(linear_model_micro)) +
+  labs(title = "Residuals Plot\n for methanomicrobiales number of counts (nc_microbiales)") +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  face = "bold",
+                                  size = 14,
+                                  colour = "grey20"),
+        axis.title.x = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.x = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"),
+        axis.title.y = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.y = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"))
+micro_qq_plot
+
+micro_dens_plot <- ggdensity(residuals(linear_model_micro),
+                           fill = "#3B6C67",
+                           alpha = 0.6) +
+  labs(title = "Density Plot\nfor methanomicrobiales number of counts (nc_microbiales)") +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  face = "bold",
+                                  size = 14,
+                                  colour = "grey20"),
+        axis.title.x = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.x = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"),
+        axis.title.y = element_text(face = "bold",
+                                    size = 12,
+                                    colour = "grey20"),
+        axis.text.y = element_text(face = "bold",
+                                   size = 10,
+                                   colour = "grey30"))
+micro_dens_plot
+
+shapiro_test(residuals(linear_model_micro)) %>%
+  print()
+    # From plots and Shapiro-Wilk test (*p* = 0.00000000105) everything is indicated as not normally distributed
+      # # A tibble: 1 × 3
+      #   variable                      statistic       p.value
+      #   <chr>                             <dbl>         <dbl>
+      # 1 residuals(linear_model_micro)     0.745 0.00000000105
+
+# Now checking to see if there's equal variance
+# Use Levene's Test, standardly used.
+micro_variance <- plot(linear_model_micro, 1) +
+  title(main = "Variance in methanomicrobiales number of counts (nc_microbiales) for grain vs seaweed diets")
+micro_levene <- micro_data %>%
+  mutate(diet = factor(diet)) %>%
+  levene_test(as.numeric(nc_microbiales) ~ diet) %>%
+  print()
+# The null hypothesis for Levene's Test is that variance is equal.
+      # *p* = 0.806 so the null is not rejected and variance is taken as equal.
+            # # A tibble: 1 × 4
+            #     df1   df2 statistic     p
+            #   <int> <int>     <dbl> <dbl>
+            # 1     1    68    0.0607 0.806
+
+# SO! Conclusion here, populations are not normally distributed but have equal variance.
+# Use Kruskal Wallis test
+
+
+
+#2. Multiple comparisons tests(ANOVA, Kruskal-wallis, etc.) (comparing nc_methanogen w/ grain diet to nc_methanogen w/ seaweed diet)
+## BACTERIALES
+# Use one-way ANOVA
+bactANOVA <- bact_data %>%
+  anova_test(nc_bacteriales ~ diet) %>%
+  print()
+
+      # ANOVA Table (type II tests)
+
+      #   Effect DFn DFd      F       p p<.05   ges
+      # 1   diet   1  68 13.989 0.00038     * 0.171
+
+
+## MICROBIALES
+#Use Welch's One-Way ANOVA
+microWELCH <- micro_data %>%
+  welch_anova_test(nc_microbiales ~ diet) %>%
+  print()
+
+      # WELCH'S ONE-WAY ANOVA
+      # # A tibble: 1 × 7
+      #   .y.                n statistic   DFn   DFd       p method     
+      # * <chr>          <int>     <dbl> <dbl> <dbl>   <dbl> <chr>      
+      # 1 nc_microbiales    70      12.9     1  59.3 0.00068 Welch ANOVA
+
+
+
+#3. U-test and pairwise/more specific tests
+
+# Stats analysis between first and sixth sampling dates
+# BACTERIALES
+t.test(bact_first_data$nc_bacteriales, bact_sixth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_frst_data$nc_bacteriales and bact_lst_data$nc_bacteriales
+      # t = -1.2325, df = 21.988, p-value = 0.2308
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -2566630003   653212140
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 5109630104 6066339035 
+
+
+# MICROBIALES
+wilcox.test(micro_first_data$nc_microbiales, micro_sixth_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_frst_data$nc_microbiales and micro_lst_data$nc_microbiales
+      # W = 125, p-value = 0.001433
+      # alternative hypothesis: true location shift is not equal to 0
+
+    # NOTES: 
+      #Tested switching the x and y (switching first date (frst) from x to y and last date (lst) from y to x and then running the results of the test were the same)
+
+# Stats analysis between first and third sampling dates
+# BACTERIALES
+t.test(bact_first_data$nc_bacteriales, bact_third_data$nc_bacteriales) %>%  
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_frst_data$nc_bacteriales and bact_thrd_data$nc_bacteriales
+      # t = -0.13957, df = 20.977, p-value = 0.8903
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -1576915904  1378576458
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 5109630104 5208799827 
+
+# MICROBIALES
+wilcox.test(micro_first_data$nc_microbiales, micro_third_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_frst_data$nc_microbiales and micro_thrd_data$nc_microbiales
+      # W = 143, p-value = 1.479e-06
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between first and second sampling dates
+# BACTERIALES
+t.test(bact_first_data$nc_bacteriales, bact_second_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_first_data$nc_bacteriales and bact_second_data$nc_bacteriales
+      # t = 0.99734, df = 19.089, p-value =
+      # 0.3311
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -749030936 2113454540
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 5109630104 4427418302 
+
+# MICROBIALES
+wilcox.test(micro_first_data$nc_microbiales, micro_second_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_first_data$nc_microbiales and micro_second_data$nc_microbiales
+      # W = 69, p-value = 0.5824
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between first and fourth sampling dates
+# BACTERIALES
+t.test(bact_first_data$nc_bacteriales, bact_fourth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_first_data$nc_bacteriales and bact_fourth_data$nc_bacteriales
+      # t = -2.7015, df = 21.945, p-value =
+      # 0.01305
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -3659076093  -480651883
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 5109630104 7179494091 
+
+# MICROBIALES
+wilcox.test(micro_first_data$nc_microbiales, micro_fourth_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_first_data$nc_microbiales and micro_fourth_data$nc_microbiales
+      # W = 140, p-value = 8.875e-06
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between first and fifth sampling dates
+# BACTERIALES
+t.test(bact_first_data$nc_bacteriales, bact_fourth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_first_data$nc_bacteriales and bact_fifth_data$nc_bacteriales
+      # t = -4.5591, df = 21.344, p-value =
+      # 0.0001647
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -5737650649 -2145360888
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 5109630104 9051135872 
+
+# MICROBIALES
+wilcox.test(micro_first_data$nc_microbiales, micro_fifth_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_first_data$nc_microbiales and micro_fifth_data$nc_microbiales
+      # W = 77, p-value = 0.7987
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between second and third sampling dates
+# BACTERIALES
+t.test(bact_second_data$nc_bacteriales, bact_third_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_second_data$nc_bacteriales and bact_third_data$nc_bacteriales
+      # t = -1.3089, df = 20, p-value = 0.2054
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -2026675803   463912753
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 4427418302 5208799827  
+
+# MICROBIALES
+wilcox.test(micro_second_data$nc_microbiales, micro_third_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_second_data$nc_microbiales and micro_third_data$nc_microbiales
+      # W = 120, p-value = 3.093e-06
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between second and fourth sampling dates
+# BACTERIALES
+t.test(bact_second_data$nc_bacteriales, bact_fourth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_second_data$nc_bacteriales and bact_fourth_data$nc_bacteriales
+      # t = -4.1556, df = 19.422, p-value = 0.0005157
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -4136147974 -1368003605
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 4427418302 7179494091  
+
+# MICROBIALES
+wilcox.test(micro_second_data$nc_microbiales, micro_fourth_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_second_data$nc_microbiales and micro_fourth_data$nc_microbiales
+      # W = 118, p-value = 1.237e-05
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between second and fifth sampling dates
+# BACTERIALES
+t.test(bact_second_data$nc_bacteriales, bact_fifth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_second_data$nc_bacteriales and bact_fifth_data$nc_bacteriales
+      # t = -5.9744, df = 17.608, p-value = 1.302e-05
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -6252263000 -2995172140
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 4427418302 9051135872 
+
+# MICROBIALES
+wilcox.test(micro_second_data$nc_microbiales, micro_fifth_data$nc_microbiales) %>%
+  print()
+
+      # 	Wilcoxon rank sum exact test
+
+      # data:  micro_second_data$nc_microbiales and micro_fifth_data$nc_microbiales
+      # W = 62, p-value = 0.9229
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between second and sixth sampling dates
+# BACTERIALES
+t.test(bact_second_data$nc_bacteriales, bact_sixth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_second_data$nc_bacteriales and bact_sixth_data$nc_bacteriales
+      # t = -2.4321, df = 19.249, p-value = 0.02493
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -3048134498  -229706969
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 4427418302 6066339035 
+
+# MICROBIALES
+wilcox.test(micro_second_data$nc_microbiales, micro_sixth_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_second_data$nc_microbiales and micro_sixth_data$nc_microbiales
+      # W = 101, p-value = 0.005645
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between third and fourth sampling dates
+# BACTERIALES
+t.test(bact_third_data$nc_bacteriales, bact_fourth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_third_data$nc_bacteriales and bact_fourth_data$nc_bacteriales
+      # t = -2.8578, df = 21.362, p-value = 0.00932
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -3403307388  -538081141
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 5208799827 7179494091 
+
+# MICROBIALES
+wilcox.test(micro_third_data$nc_microbiales, micro_fourth_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_third_data$nc_microbiales and micro_fourth_data$nc_microbiales
+      # W = 43, p-value = 0.1005
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between third and fifth sampling dates
+# BACTERIALES
+t.test(bact_third_data$nc_bacteriales, bact_fifth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_third_data$nc_bacteriales and bact_fifth_data$nc_bacteriales
+      # t = -4.8183, df = 19.206, p-value = 0.0001161
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -5510200714 -2174471376
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 5208799827 9051135872 
+
+# MICROBIALES
+wilcox.test(micro_third_data$nc_microbiales, micro_fifth_data$nc_microbiales) %>%
+  print()
+
+      # 	Wilcoxon rank sum exact test
+
+      # data:  micro_third_data$nc_microbiales and micro_fifth_data$nc_microbiales
+      # W = 6, p-value = 2.219e-05
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between third and sixth sampling dates
+# BACTERIALES
+t.test(bact_third_data$nc_bacteriales, bact_sixth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_third_data$nc_bacteriales and bact_sixth_data$nc_bacteriales
+      # t = -1.2237, df = 21.162, p-value = 0.2345
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -2314190705   599112288
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 5208799827 6066339035 
+
+# MICROBIALES
+wilcox.test(micro_third_data$nc_microbiales, micro_sixth_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_third_data$nc_microbiales and micro_sixth_data$nc_microbiales
+      # W = 24, p-value = 0.004513
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between fourth and fifth sampling dates
+# BACTERIALES
+t.test(bact_fourth_data$nc_bacteriales, bact_fifth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_fourth_data$nc_bacteriales and bact_fifth_data$nc_bacteriales
+      # t = -2.2087, df = 20.955, p-value = 0.03847
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -3634158065  -109125496
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 7179494091 9051135872 
+
+# MICROBIALES
+wilcox.test(micro_fourth_data$nc_microbiales, micro_fifth_data$nc_microbiales) %>%
+  print()
+
+      # 	Wilcoxon rank sum exact test
+
+      # data:  micro_fourth_data$nc_microbiales and micro_fifth_data$nc_microbiales
+      # W = 13, p-value = 0.0002744
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between fourth and sixth sampling dates
+# BACTERIALES
+t.test(bact_fourth_data$nc_bacteriales, bact_sixth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_fourth_data$nc_bacteriales and bact_sixth_data$nc_bacteriales
+      # t = 1.4702, df = 21.984, p-value = 0.1557
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  -457124252 2683434364
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 7179494091 6066339035
+
+# MICROBIALES
+wilcox.test(micro_fourth_data$nc_microbiales, micro_sixth_data$nc_microbiales) %>%
+  print()
+
+      # 	Wilcoxon rank sum exact test
+
+      # data:  micro_fourth_data$nc_microbiales and micro_sixth_data$nc_microbiales
+      # W = 45, p-value = 0.1277
+      # alternative hypothesis: true location shift is not equal to 0
+
+# Stats analysis between fifth and sixth sampling dates
+# BACTERIALES
+t.test(bact_fifth_data$nc_bacteriales, bact_sixth_data$nc_bacteriales) %>%
+  print()
+
+      # Welch Two Sample t-test
+
+      # data:  bact_fifth_data$nc_bacteriales and bact_sixth_data$nc_bacteriales
+      # t = 3.4848, df = 21.175, p-value = 0.00219
+      # alternative hypothesis: true difference in means is not equal to 0
+      # 95 percent confidence interval:
+      #  1204443664 4765150010
+      # sample estimates:
+      #  mean of x  mean of y 
+      # 9051135872 6066339035 
+
+# MICROBIALES
+wilcox.test(micro_fifth_data$nc_microbiales, micro_sixth_data$nc_microbiales) %>%
+  print()
+
+      # Wilcoxon rank sum exact test
+
+      # data:  micro_fifth_data$nc_microbiales and micro_sixth_data$nc_microbiales
+      # W = 113, p-value = 0.01727
+      # alternative hypothesis: true location shift is not equal to 0
+
+
+#4. Running a correlation test 
+
+#BACTERIALES
+#Normal distribution --> Pearson correlation
+#Three variables: Diet, Date, Bacteria
+#Running correlation to see that there is no correlation with the changing date within the distinct diets
+cor(bact_first_data$nc_bacteriales, bact_second_data$nc_bacteriales, method = "pearson") %>%
+  print()
+
+      #Result: 0.205659 --> No correlation
+
+cor(bact_third_data$nc_bacteriales, bact_fourth_data$nc_bacteriales, method = "pearson") %>%
+  print()
+
+      #Result: 0.2192292 --> No correlation
+
+cor(bact_third_data$nc_bacteriales, bact_fifth_data$nc_bacteriales, method = "pearson") %>%
+  print()
+
+      #Result: -0.1159255 --> No correlation
+
+cor(bact_third_data$nc_bacteriales, bact_sixth_data$nc_bacteriales, method = "pearson") %>%
+  print()
+
+      #Result: 0.3727164 --> Weak positive linear correlation
+
+cor(bact_fourth_data$nc_bacteriales, bact_fifth_data$nc_bacteriales, method = "pearson") %>%
+  print()
+
+      #Result: 0.4530841 --> Weak positive linear correlation
+
+cor(bact_fourth_data$nc_bacteriales, bact_sixth_data$nc_bacteriales, method = "pearson") %>%
+  print()
+
+      #Result: 0.2674809 --> Weak positive linear correlation
+
+cor(bact_fifth_data$nc_bacteriales, bact_sixth_data$nc_bacteriales, method = "pearson") %>%
+  print()
+
+      #Result: 0.6488852 --> Moderate positive linear correlation
+
+#MICROBIALES
+#Not normal distribution --> Spearman's Rank (Rho)
+cor(bact_first_data$nc_microbiales, bact_second_data$nc_microbiales, method = "spearman") %>%
+  print()
+
+      #Result: 0.3090909 --> Weak positive linear correlation
+
+cor(micro_third_data$nc_microbiales, micro_fourth_data$nc_microbiales, method = "spearman") %>%
+  print()
+
+      #Result: 0.4685315 --> Weak positive linear correlation
+
+cor(micro_third_data$nc_microbiales, micro_fifth_data$nc_microbiales, method = "spearman") %>%
+  print()
+
+      #Result: 0.7132867 --> Moderate positive linear correlation
+
+cor(micro_third_data$nc_microbiales, micro_sixth_data$nc_microbiales, method = "spearman") %>%
+  print()
+
+      #Result: 0.02797203 --> No correlation
+
+cor(micro_fourth_data$nc_microbiales, micro_fifth_data$nc_microbiales, method = "spearman") %>%
+  print()
+
+      #Result: 0.6923077 --> Moderate positive linear correlation
+
+cor(micro_fourth_data$nc_microbiales, micro_sixth_data$nc_microbiales, method = "spearman") %>%
+  print()
+
+      #Result: 0.5104895 --> Weak positive linear correlation
+
+cor(micro_fifth_data$nc_microbiales, micro_sixth_data$nc_microbiales, method = "spearman") %>%
+  print()
+
+      #Result: 0.2377622 --> No correlation
+
+
+# P-adjusted values --> Post hoc test = Benjany Hoxberg Multiple comparisons correction
+
+#5. Plotting Stats Tests
+
+# BACTERIALES BOX PLOT----
+Plotbact <-ggboxplot(qpcr_results, x = "date", y = "nc_bacteriales",
+                     color = "date", palette = c("#EEE685","#EEE685","#ADCE84","#ADCE84","#ADCE84","#ADCE84"),
+                     order = Date_Order,
+                     ylab = "Methanobacteriales\n Number of Copies (nc)", xlab = "Date") +
+           theme(legend.position = "none",
+                 axis.title.x = element_blank())
+
+Plotbact
+
+# MICROBIALES BOX PLOT----
+Plotmicro <-ggboxplot(qpcr_results, x = "date", y = "nc_microbiales",
+                     color = "date", palette = c("#EEE685","#EEE685","#ADCE84","#ADCE84","#ADCE84","#ADCE84"),
+                     order = Date_Order,
+                     ylab = "Methanomicrobiales\n Number of Copies (nc)", xlab = "Date") +
+           theme(legend.position = "none",
+                 axis.title.x = element_blank())
+
+Plotmicro
+
+# geom_segment(short vert bar) +
+# geom_segment(long horiz bar) +
+# geom_segment(short vert bar) +
+# geom_text(x,y,paste0("p = ", microwelch$p))
+
+#5. Save graphs
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\bact_qq_plot.png",
+       plot = bact_qq_plot,
+       device = "png",
+       width = 12, 
+       height = 10,
+       dpi = 300,
+       )
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\bact_dens_plot.png",
+       plot = bact_dens_plot,
+       device = "png",
+       width = 12, 
+       height = 10,
+       dpi = 300,
+       )
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\Plotbact1.2.png",
+       plot = Plotbact,
+       device = "png",
+       width = 10, 
+       height = 8,
+       dpi = 300,
+       )
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\micro_qq_plot.png",
+       plot = micro_qq_plot,
+       device = "png",
+       width = 12, 
+       height = 10,
+       dpi = 300,
+       )
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\micro_dens_plot.png",
+       plot = micro_dens_plot,
+       device = "png",
+       width = 12, 
+       height = 10,
+       dpi = 300,
+       )
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\Plotmicro1.2.png",
+       plot = Plotmicro,
+       device = "png",
+       width = 10, 
+       height = 8,
+       dpi = 300,
+       )       
