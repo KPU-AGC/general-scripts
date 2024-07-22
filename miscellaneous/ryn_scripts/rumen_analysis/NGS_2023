@@ -1,0 +1,163 @@
+# ----
+
+#                    ▓▓░  ▓▓▓  ░▓▓▓
+#   -. .-.   .-. .- ▓░ ▓░▓░   ░▓  ░▓ -. .-.   .-. .-
+#   ||\|||\ /|||\|| ▓▓▓▓░▓░░▓▓░▓     ||\|||\ /|||\||
+#   |/ \|||\|||/ \| ▓░ ▓░▓░ ░▓░▓  ░▓ |/ \|||\|||/ \|
+#   ¯   `-¯ `-'   ` ▓░ ▓░ ▓▓▓  ░▓▓▓  ¯   `-¯ `-'   `
+#  T H E  A P P L I E D  G E N O M I C S  C E N T R E
+#           --- Coding a better harvest ---
+#Author: Tamryn Kennedy
+#Date: January 3, 2024
+
+#R script to visualize NGS data in bar graphs
+
+
+# Installing packages ----
+
+#install.packages("patchwork")
+#install.packages("ggh4x")
+
+
+#Load packages
+library(ggplot2)
+library(dplyr)
+library(ggh4x)
+
+#Set working directory
+setwd("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023")
+
+
+strip <- strip_themed(background_x = elem_list_rect(fill = c("khaki2",
+                                                             "khaki2",
+                                                             "#ADCE84",
+                                                             "#ADCE84",
+                                                             "#ADCE84",
+                                                             "#ADCE84")))
+
+
+#graphing all data
+counts_df <- read.csv("output2.csv") %>%
+  filter(count > 1) %>%
+  mutate(adjusted_species = ifelse(grepl("d__Bacteria", species, fixed = TRUE), "Bacteria", species)) %>%
+  filter(!grepl("d__Eukaryota", adjusted_species, fixed = TRUE)) %>% 
+  filter(!grepl("Unassigned", adjusted_species, fixed = TRUE)) %>% 
+  mutate(adjusted_species = ifelse(grepl("d__Archaea", adjusted_species, fixed = TRUE), "Archaea", adjusted_species)) 
+
+
+counts_df <- ggplot(counts_df, aes(fill=adjusted_species, y=count, x=cattle.id)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_wrap2(~Date, nrow = 1, scale = "free_x", strip = strip) + #+guides(fill="none")
+  #scale_x_date(date_labels = "%b %d") +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_fill_manual(values = c("#FF5774",
+                               "#D0B888")) +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_text(size=14),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_text(margin = margin (t=3, r=20, b=3, l=0), size=16),
+        axis.title.x = element_text(margin = margin (t=2, r=20, b=2, l=0), size=16),
+        strip.text = element_text(size=14),
+        legend.position = "none"
+        #strip.background = element_rect(fill = c("cornsilk1"))
+  ) +
+  labs (x = "Cow ID", y = "Relative Abundance", fill = "Domains")
+
+counts_df
+
+
+#Graphing all data (zoomed)
+counts_df2 <- read.csv("output2.csv") %>%
+  filter(count > 1) %>%
+  mutate(adjusted_species = ifelse(grepl("d__Bacteria", species, fixed = TRUE), "Bacteria", species)) %>%
+  filter(!grepl("d__Eukaryota", adjusted_species, fixed = TRUE)) %>% 
+  filter(!grepl("Unassigned", adjusted_species, fixed = TRUE)) %>% 
+  mutate(adjusted_species = ifelse(grepl("d__Archaea", adjusted_species, fixed = TRUE), "Archaea", adjusted_species)) 
+
+
+counts_df2 <- ggplot(counts_df2, aes(fill=adjusted_species, y=count, x=cattle.id)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_wrap2(~Date, nrow = 1, scale = "free_x", strip = strip) + #+guides(fill="none")
+  #scale_x_date(date_labels = "%b %d") +
+  scale_y_continuous(expand = c(0, 0)) +
+  coord_cartesian(ylim = c(0.96,1.0)) +
+  scale_fill_manual(values = c("#FF5774",
+                               "#D0B888")) +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_text(size=14),
+        legend.key.size = unit(0.25,'cm'),
+        legend.key.height = unit(0.50, 'cm'),
+        legend.key.width = unit(0.50, 'cm'),
+        legend.title = element_text(size=10),
+        legend.text = element_text(size=8),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_text(margin = margin (t=3, r=20, b=3, l=0), size=16),
+        axis.title.x = element_text(margin = margin (t=2, r=20, b=2, l=0), size=16),
+        strip.text = element_text(size=14)) +
+  labs (x = "Cow ID", y = "Relative Abundance", fill = "Domains")
+
+counts_df2
+
+
+# Methanogens only
+counts_df3 <- read.csv("output2.csv") %>%
+  filter(count > 1) %>%
+  mutate(adjusted_species = ifelse(grepl("d__Bacteria", species, fixed = TRUE), "Bacteria", species)) %>%
+  filter(!grepl("d__Eukaryota", species, fixed = TRUE)) %>%
+  filter(adjusted_species != "Bacteria")
+
+
+counts_df3 <- ggplot(counts_df3, aes(fill=adjusted_species, y=count, x=cattle.id)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_wrap2(~Date, nrow = 1, scale = "free_x", strip = strip) + #+guides(fill="none")
+  scale_y_continuous(expand = c(0, 0)) +
+  #scale_x_date(date_labels = "%b %d") +
+  coord_cartesian(ylim = c(0,0.1)) +
+  scale_fill_manual(values = c("#840029",
+                               "#006699",
+                               "#f2a40d",
+                               "#1a1a1a"),
+                    labels = c("d__Archaea;p__Euryarchaeota;c__Methanobacteria;o__Methanobacteriales" = "Methanobacteriales",
+                               "d__Archaea;p__Halobacterota;c__Methanosarcinia;o__Methanosarciniales" = "Methanosarciniales",
+                               "d__Archaea;p__Thermoplasmatota;c__Thermoplasmata;o__Methanomassiliicoccales" = "Methanomassiliicoccales",
+                               "Unassigned;__;__;__" = "Unassigned")) +
+  
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_text(size=15),
+        legend.key.size = unit(0.25,'cm'),
+        legend.key.height = unit(0.50, 'cm'),
+        legend.key.width = unit(0.50, 'cm'),
+        legend.title = element_text(size=10),
+        legend.text = element_text(size=8),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_text(margin = margin (t=3, r=20, b=3, l=0), size=16),
+        axis.title.x = element_text(margin = margin (t=2, r=20, b=2, l=0), size=16),
+        strip.text = element_text(size=15)) +
+  labs (x = "Cow ID", y = "Relative Abundance", fill = "Orders")
+
+counts_df3
+
+
+# ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\NGS_all4.5.png",
+#        plot = counts_df,
+#        device = "png",
+#        width = 8.5, 
+#        height = 5,
+#        dpi = 300,
+#        )
+
+# ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\NGS_allzoomed4.3.png",
+#        plot = counts_df2,
+#        device = "png",
+#        width = 9, 
+#        height = 5,
+#        dpi = 300,
+#        )       
+
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\2023\\NGS_methano4.4.png",
+       plot = counts_df3,
+       device = "png",
+       width = 18, 
+       height = 8,
+       dpi = 300,
+       )
