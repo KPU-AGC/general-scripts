@@ -1,0 +1,39 @@
+#Author: Tamryn Kennedy
+#Date: July 12, 2024
+ 
+ #!/bin/bash
+
+#Activate conda environment (probedesign_tk)
+
+PARENT_DIR="/home/agc/Documents/ryn/westgen/genomes_2"
+M_BOVIS_GENOMES=$(realpath ${PARENT_DIR}/m_bovis/accessions/*.fna)
+Q_fasta=$(realpath ${PARENT_DIR}/query.fasta)
+REF_GENOME=$(realpath ${PARENT_DIR}/ref/GCF_001930225.1_ASM193022v1_genomic.fna)
+M_BOVIS_SAM=$(realpath ${PARENT_DIR}/hw/uvrC_sam/*.sam)
+M_BOVIS_BAM=$(realpath ${PARENT_DIR}/hw/uvrC_bam/)
+#1 Create a blast db for every genome in M. bovis (iteratively --> loop)
+        #Command to make database (makeblastdb -in GCF_001930225.1_ASM193022v1_genomic.fna -dbtype 'nuc>
+        #Activate conda environment (probedesign_tk)
+
+#for M_BOVIS_GENOME in ${M_BOVIS_GENOMES}; do
+#        M_BASE=$(basename ${M_BOVIS_GENOME} .fna);
+#        #makeblastdb -in ${M_BOVIS_GENOME} -dbtype 'nucl';
+#        blastn -query ${Q_fasta} -db ${M_BOVIS_GENOME} -outfmt "6 sacc sseq" | sed 's/^/>/' | tr "\t" "\n" >~/Documents/ryn/westg>#done
+
+#bwa index ${REF_GENOME}
+
+for M_SAM in ${M_BOVIS_SAM}; do
+        M_BASE=$(basename ${M_SAM} .sam);
+        #samtools faidx ${REF_GENOME};
+        #bwa mem -t 16 ${REF_GENOME} ${M_BOVIS_GENOME} >${M_BOVIS_SAM}/${M_BASE}.sam
+        samtools view -b -@ 24 ${M_SAM} > ${M_BOVIS_BAM}/${M_BASE}.bam
+done
+#Pre-Index & sort alignment
+#samtools sort align2.sam
+#samtools sort align2.sam --output-fmt BAM -o align2.bam
+#samtools index align2.bam
+#Create & index .bcf file
+#bcftools mpileup -f ${REF_GENOME} ${M_BOVIS_BAM}/*.bam | bcftools call --ploidy 1 -mv -Ob -o align4.bcf
+#bcftools index align2.bcf
+#View .bcf file without header
+#bcftools view align2.bcf --no-header | wc -l
