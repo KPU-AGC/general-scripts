@@ -10,7 +10,7 @@
 #Author: Tamryn Kennedy
 #Date: June 18, 2024
 
-#R script to visualize the Methanomicrobiales qPCR data
+#R script to visualize the Methanomicrobiales qPCR data from 2023 samples
 
 
 # Installing packages ----
