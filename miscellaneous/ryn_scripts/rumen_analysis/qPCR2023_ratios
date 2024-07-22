@@ -1,0 +1,199 @@
+# ----
+
+#                    ▓▓░  ▓▓▓  ░▓▓▓
+#   -. .-.   .-. .- ▓░ ▓░▓░   ░▓  ░▓ -. .-.   .-. .-
+#   ||\|||\ /|||\|| ▓▓▓▓░▓░░▓▓░▓     ||\|||\ /|||\||
+#   |/ \|||\|||/ \| ▓░ ▓░▓░ ░▓░▓  ░▓ |/ \|||\|||/ \|
+#   ¯   `-¯ `-'   ` ▓░ ▓░ ▓▓▓  ░▓▓▓  ¯   `-¯ `-'   `
+#  T H E  A P P L I E D  G E N O M I C S  C E N T R E
+#           --- Coding a better harvest ---
+#Author: Tamryn Kennedy
+#Date: June 18, 2024
+
+#R script to visualize the ratios Methanobacteriales/Total class and Methanomicrobiales/Total class qPCR data
+
+
+# Installing packages ----
+
+# pacman::p_load(patchwork,
+#                reshape2,
+#                sessioninfo,
+#                tidyverse,
+#                ggplot2,
+#                ggpubr)
+
+# Loading data
+qpcr_results <- read_csv("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\Analysis\\2023\\2023_methanogens.csv") %>%
+  drop_na(day) %>%
+  filter(!number == "Mean")
+qpcr_resultsjustmn <- read_csv("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\Analysis\\2023\\2023_methanogens.csv") %>%
+  drop_na(day) %>%
+  filter(number == "Mean")
+
+# qpcr_results$date <- as_date(ymd(qpcr_results$date))
+qpcr_results$day <- as_date(ymd(qpcr_results$day), tz=UTC)
+#head(qpcr_results)
+#filter(!number == "Mean")
+
+# 'full_dataset' is the dataframe
+# and 'date_time' is the date column in the dataframe
+# qpcr_results$date <- as_datetime(lubridate::ymd(qpcr_results$date))
+# class(qpcr_results$date)
+
+# Specify date order for each df
+Date_Order <- c("7/4/2023","7/17/2023","7/24/2023","8/2/2023","8/8/2023","8/14/2023")
+
+Cow_Order <- c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12")
+uni <- unique(qpcr_results$date)
+#Date_Order <- sort(uni)
+
+start_date <- min(qpcr_results$day)-days(1)
+end_date <- max(qpcr_results$day)+days(1)
+
+#start_date
+
+# Assign variables
+  ratio1 <- qpcr_results$bact_total
+  ratio2 <- qpcr_results$mic_total
+
+  ratio3 <- qpcr_resultsjustmn$bact_total
+  ratio4 <- qpcr_resultsjustmn$mic_total
+
+
+# Plotting Results
+
+Plotratio1 <- ggplot(qpcr_results, aes(x = as.Date(day), y = as.numeric(bact_total), color = number)) +
+  geom_rect(aes(xmin = start_date, 
+                xmax = as.Date("2023-07-18", "%Y-%m-%d"),
+                ymin = -Inf, ymax = Inf),
+            fill = 'cornsilk1',
+            color = 'cornsilk1',
+            alpha = 0.25) +
+  geom_rect(aes(xmin = as.Date("2023-07-18", "%Y-%m-%d"), 
+                xmax = end_date,
+                ymin = -Inf, ymax = Inf),
+            fill = '#ecf7d0',
+            color = '#ecf7d0',
+            alpha = 0.25) +
+  geom_point() +
+  geom_smooth(color = "#008A8A",
+              level=0.95) + 
+  
+  #geom_hline(yintercept = c(0.005, 0.01, 0.015, 0.02, 0.025), linetype = "dotted", color = "grey70") +
+  
+  geom_vline(xintercept = as.Date("2023-07-18", "%Y-%m-%d"), color = "#1A1A1A") +
+  geom_label(aes(x=as.Date("2023-07-20", "%Y-%m-%d"), y = 0.27), label = "Introduction of seaweed additive", hjust = 0, size=4, color = "#1A1A1A") +
+  geom_segment(aes(x = as.Date("2023-07-18", "%Y-%m-%d"), xend = as.Date("2023-07-20", "%Y-%m-%d"), y = 0.25, yend = 0.27), color = "#1A1A1A") +
+  scale_x_date(date_labels = "%b %d",
+               breaks = c(
+                 as.Date("2023-07-04", "%Y-%m-%d"),
+                 as.Date("2023-07-17", "%Y-%m-%d"),
+                 as.Date("2023-07-24", "%Y-%m-%d"),
+                 as.Date("2023-08-02", "%Y-%m-%d"),
+                 as.Date("2023-08-08", "%Y-%m-%d"),
+                 as.Date("2023-08-14", "%Y-%m-%d")), 
+               expand = expansion(),
+               limits = c(start_date, end_date)) + # = "Aug 14")) +
+  #scale_y_continuous(limits = c(0,19100000)) + 
+  #breaks = seq(0,19100000, by = 10000)) +
+  scale_colour_discrete(breaks = Cow_Order) +
+  theme_classic() +
+  theme(axis.text.y = element_text(size=10),
+        axis.text.x = element_text(size=10),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(margin = margin (t=0, r=20, b=0, l=0), size=12),
+        legend.key.size = unit(0.25,'cm'),
+        legend.key.height = unit(0.50, 'cm'),
+        legend.key.width = unit(0.50, 'cm'),
+        legend.title = element_text(size=10),
+        legend.text = element_text(size=10)) +
+  # axis.title.x = element_blank()) +
+  labs(y = "Methanobacteriales/Methanogen Total Class\n Number of Copies", x = "Date", color = "Cow ID")
+
+Plotratio1
+
+
+Plotratio2 <- ggplot(qpcr_results, aes(x = as.Date(day), y = as.numeric(mic_total), color = number)) +
+  geom_rect(aes(xmin = start_date, 
+                xmax = as.Date("2023-07-18", "%Y-%m-%d"),
+                ymin = -Inf, ymax = Inf),
+            fill = 'cornsilk1',
+            color = 'cornsilk1',
+            alpha = 0.25) +
+  geom_rect(aes(xmin = as.Date("2023-07-18", "%Y-%m-%d"), 
+                xmax = end_date,
+                ymin = -Inf, ymax = Inf),
+            fill = '#ecf7d0',
+            color = '#ecf7d0',
+            alpha = 0.25) +
+  geom_point() +
+  geom_smooth(color = "#FF5774",
+              level=0.95) + 
+  
+  #geom_hline(yintercept = c(0.005, 0.01, 0.015, 0.02, 0.025), linetype = "dotted", color = "grey70") +
+  
+  geom_vline(xintercept = as.Date("2023-07-18", "%Y-%m-%d"), color = "#1A1A1A") +
+  geom_label(aes(x=as.Date("2023-07-20", "%Y-%m-%d"), y = 1.1e-03), label = "Introduction of seaweed additive", hjust = 0, size=4, color = "#1A1A1A") +
+  geom_segment(aes(x = as.Date("2023-07-18", "%Y-%m-%d"), xend = as.Date("2023-07-20", "%Y-%m-%d"), y = 1e-03, yend = 1.1e-03), color = "#1A1A1A") +
+  scale_x_date(date_labels = "%b %d",
+               breaks = c(
+                 as.Date("2023-07-04", "%Y-%m-%d"),
+                 as.Date("2023-07-17", "%Y-%m-%d"),
+                 as.Date("2023-07-24", "%Y-%m-%d"),
+                 as.Date("2023-08-02", "%Y-%m-%d"),
+                 as.Date("2023-08-08", "%Y-%m-%d"),
+                 as.Date("2023-08-14", "%Y-%m-%d")), 
+               expand = expansion(),
+               limits = c(start_date, end_date)) + # = "Aug 14")) +
+  #scale_y_continuous(limits = c(0,19100000)) + 
+  #breaks = seq(0,19100000, by = 10000)) +
+  scale_colour_discrete(breaks = Cow_Order) +
+  theme_classic() +
+  theme(axis.text.y = element_text(size=10),
+        axis.text.x = element_text(size=10),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(margin = margin (t=0, r=20, b=0, l=0), size=12),
+        legend.position = "none") +
+        # legend.key.size = unit(0.25,'cm'),
+        # legend.key.height = unit(0.50, 'cm'),
+        # legend.key.width = unit(0.50, 'cm'),
+        # legend.title = element_text(size=10),
+        # legend.text = element_text(size=10)) +
+  # axis.title.x = element_blank()) +
+  labs(y = "Methanomicrobiales/Methanogen Total Class\n Number of Copies", x = "Date", color = "Cow ID")
+
+Plotratio2
+
+#Combining plots to save
+
+figure1 <- ggarrange(Plotratio1,
+                    ggarrange(Plotratio2, ncol = 1, labels = "B"),
+                    nrow = 2,
+                    labels = "A",
+                    common.legend = TRUE,
+                    legend = "right"
+                    )
+figure1
+
+
+# Save images
+ggsave("C:\\Users\\tkennedy\\Documents\\AGC\\cattle_rumen\\Analysis\\2023\\raitos5.1.png",
+       plot = figure1,
+       device = "png",
+       width = 14, 
+       height = 10,
+       dpi = 300,
+       )
+
+
+  # theme(legend.key.size = unit(1, 'cm'), #change legend key size
+  #       legend.key.height = unit(1, 'cm'), #change legend key height
+  #       legend.key.width = unit(1, 'cm'), #change legend key width
+  #       legend.title = element_text(size=14), #change legend title font size
+  #       legend.text = element_text(size=10)) #change legend text font size
+
+#   pngfile <- fs::path(knitr::fig_path(),  "resolution.png")
+# agg_png(pngfile, width = 7087, height = 4252, units = "px", res = 900)
+# plot(p)
+# invisible(dev.off())
+# knitr::include_graphics(pngfile)
