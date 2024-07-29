@@ -78,13 +78,28 @@ def get_args() -> Namespace:
 
 def _newer_version_exists(current_ver_date: str, last_updated_date: str) -> bool:
     """
+    Function checks to see whether a new version exists by comparing the local update time and the update time of the online database.
+
+    Parameters: 
+        current_ver_date (str): the local update time in '%Y-%m-%dT%H:%M:%S' format.
+        last_updated_date (str): the available online update time '%Y-%m-%dT%H:%M:%S'
+
+    Returns:
+        (bool): where a new version exists (True) or not (False)
     """
     "2024-07-16T00:00:00"
     if datetime.strptime(current_ver_date, "%Y-%m-%dT%H:%M:%S") < datetime.strptime(last_updated_date, "%Y-%m-%dT%H:%M:%S"): return True
     else: return False
 
-def _get_json(input_db_str: str) -> None:
+def _get_json(input_db_str: str) -> dict:
     """
+    Function parses online metadata JSON file for the current database hosted on NCBI's FTP server.
+    
+    Parameters:
+        input_db_str (str): database name, previously name-validated.
+
+    Returns:
+        (dict): dictionary of metadata JSON file.
     """
     logging.info(f"Trying to reach https://ftp.ncbi.nlm.nih.gov ...")
     with urllib.request.urlopen(f"https://ftp.ncbi.nlm.nih.gov/blast/db/{input_db_str}-nucl-metadata.json") as url:
@@ -94,13 +109,27 @@ def _get_json(input_db_str: str) -> None:
 
 def _get_current_version(input_path: pathlib.Path) -> str:
     """
+    Function reads the `{db_name}.date` file to check the most recent version downloaded.
+
+    Parameters:
+        input_path (pathlib.Path): path of {dn_name}.date file.
+
+    Returns:
+        (str): time that the database was downloaded in '%Y-%m-%dT%H:%M:%S' format.
     """
     with open(input_path) as input_file:
-        current_version = input_file.read().strip()
+        current_version = input_file.read().strip(); 
     return current_version
 
 def _check_md5(input_path: pathlib.Path) -> str:
     """
+    Function reads the input `.tar.gz` file, checks the md5, and parses it to just the hash. 
+
+    Parameters:
+        input_path (pathlib.Path): path of `{dn_name}.tar.gz` file.
+
+    Returns:
+        (str): the file hash using the md5 algorithm.
     """
     command = f'md5sum {input_path}'
     result = subprocess.run(command, shell=True, capture_output=True)
@@ -108,6 +137,13 @@ def _check_md5(input_path: pathlib.Path) -> str:
 
 def _read_md5(input_path: pathlib.Path) -> str:
     """
+    Function reads the input `.md5` file and parses it to just the hash. 
+
+    Parameters:
+        input_path (pathlib.Path): path of `{dn_name}.tar.gz.md5` file.
+
+    Returns:
+        (str): the file hash using the md5 algorithm.
     """
     with open(input_path) as input_file:
         md5 = input_file.read().strip().split(' ')[0]
@@ -115,14 +151,31 @@ def _read_md5(input_path: pathlib.Path) -> str:
 
 def _decompress_file(input_path: pathlib.Path) -> None:
     """
+    Function decompresses a given `.tar.gz` file while dealing with in-place extraction.
+
+    Parameters:
+        input_path (pathlib.Path): path of `{dn_name}.tar.gz` file.
+
+    Returns:
+        (None)
     """
     command = f'tar -xzvf {input_path} -C {input_path.parent}'
     logging.info(f"Unzipping {input_path} ...")
     subprocess.run(command, shell=True, capture_output=True)
     logging.info(f"Unzipped {input_path} .")
 
-def _download_from_url(target_url: str, destination_path, download_md5_arg, decompress_arg) -> None:
+def _download_from_url(target_url: str, destination_path: pathlib.Path, download_md5_arg: bool, decompress_arg: bool) -> None:
     """
+    Function downloads a component of the BLAST db from a target URL, with some options for md5 checking and decompressing.
+
+    Parameters:
+        target_url (str): URL to the `.tar.gz` file hosted on NCBI's FTP server.
+        destination_path (pathlib.Path): path to directory of download destination.
+        download_md5_arg (bool): argument to specify whether to check the md5.
+        decompress_arg (bool): argument to specify whether to decompress input files.
+
+    Returns:
+        (None)
     """
     filename = target_url.split('/')[-1]
     logging.info(f"Downloading {filename} to {destination_path.joinpath(filename)} ...")
@@ -150,6 +203,16 @@ def _download_from_url(target_url: str, destination_path, download_md5_arg, deco
 
 def _mp_wrap_download(threads_arg: int, url_list: list, destination_path: pathlib, download_md5_arg: bool, decompress_arg: bool) -> None:
     """
+    Multiprocessing wrapper for downloading components of the BLAST db from a target URL, with some options for md5 checking and decompressing.
+
+    Parameters:
+        target_url (str): URL to the `.tar.gz` file hosted on NCBI's FTP server.
+        destination_path (pathlib.Path): path to directory of download destination.
+        download_md5_arg (bool): argument to specify whether to check the md5.
+        decompress_arg (bool): argument to specify whether to decompress input files.
+
+    Returns:
+        (None)
     """
     with multiprocessing.Pool(threads_arg if threads_arg else None) as pool:
         logging.info(f"Downloading database using {pool._processes} processes ...")
@@ -164,8 +227,7 @@ def _log_params(args: Namespace) -> None:
     return None
 # --------------------------------------------------
 def main() -> None:
-    """
-    """
+    """ Do the thing. """
 
     args = get_args()
 
